@@ -189,9 +189,8 @@ async function saveLocation(lat,lng){
   if(!nombre) return;
   const id=nombre.replace(/\s+/g,'_').toLowerCase();
   const ts=new Date().toISOString();
-  // UPDATE primero (dispara realtime correctamente), INSERT si no existe
-  const{error:errUpd}=await sb.from('user_locations').update({nombre,lat,lng,updated_at:ts}).eq('id',id);
-  if(errUpd) await sb.from('user_locations').insert({id,nombre,lat,lng,updated_at:ts});
+  const{error}=await sb.from('user_locations').upsert({id,nombre,lat,lng,updated_at:ts});
+  if(error){console.error('Error guardando:',error.message);return;}
   _sendCount++;
   document.getElementById('display-coords').textContent=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
   document.getElementById('last-update').textContent=`${new Date().toLocaleTimeString('es-PE')}`;
