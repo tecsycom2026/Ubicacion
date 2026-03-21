@@ -3,7 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0077b6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tracking">
   <title>Tecsycom – Compartir Ubicación</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1865/1865269.png">
   <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/1865/1865269.png" type="image/x-icon">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
@@ -240,6 +247,46 @@ async function stopTracking(){
   document.getElementById('start-btn').disabled=false;
   document.getElementById('start-btn').textContent='Iniciar seguimiento';
   await refreshOcupados(_lista);
+}
+
+// ── Service Worker (PWA background GPS) ───────────────────────────────────────
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    console.log('SW registrado:', reg.scope);
+    // Escuchar mensajes del SW para enviar GPS
+    navigator.serviceWorker.addEventListener('message', event => {
+      if(event.data?.type==='REQUEST_GPS' && nombre){
+        navigator.geolocation.getCurrentPosition(
+          pos=>saveLocation(pos.coords.latitude,pos.coords.longitude),
+          err=>console.warn('SW GPS error:',err),
+          {enableHighAccuracy:true,timeout:8000,maximumAge:0}
+        );
+      }
+    });
+  }).catch(err=>console.warn('SW error:',err));
+}
+
+// ── Prompt de instalación ──────────────────────────────────────────────────────
+let _installPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  _installPrompt=e;
+  // Mostrar banner de instalación
+  const banner=document.createElement('div');
+  banner.id='install-banner';
+  banner.style.cssText='background:rgba(0,119,182,0.9);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
+  banner.innerHTML=`<span>📲 Instala la app para GPS en segundo plano</span><button onclick="installApp()" style="padding:5px 12px;border-radius:6px;border:none;background:white;color:#0077b6;font-weight:bold;font-size:12px;cursor:pointer;width:auto;">Instalar</button>`;
+  document.querySelector('.card').insertBefore(banner, document.querySelector('.card').firstChild);
+});
+
+async function installApp(){
+  if(!_installPrompt) return;
+  _installPrompt.prompt();
+  const result=await _installPrompt.userChoice;
+  if(result.outcome==='accepted'){
+    document.getElementById('install-banner')?.remove();
+    _installPrompt=null;
+  }
 }
 </script>
 </body>
