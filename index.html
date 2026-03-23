@@ -50,11 +50,91 @@
             margin-top: 4px;
         }
 
+        /* Lista de técnicos */
+        .tecnicos-container {
+            background: white;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .tecnicos-title {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .tecnicos-list {
+            display: grid;
+            gap: 8px;
+        }
+        
+        .tecnico-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        
+        .tecnico-item:hover {
+            background: #e3f2fd;
+        }
+        
+        .tecnico-item.selected {
+            background: #e3f2fd;
+            border-color: #1a73e8;
+        }
+        
+        .tecnico-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #1a73e8;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .tecnico-info {
+            flex: 1;
+        }
+        
+        .tecnico-nombre {
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .tecnico-id {
+            font-size: 0.75rem;
+            color: #666;
+        }
+        
+        .tecnico-estado {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #bdbdbd;
+        }
+        
+        .tecnico-estado.activo {
+            background: #4caf50;
+        }
+
         /* Mapa */
         #map {
             flex: 1;
             width: 100%;
-            min-height: 300px;
+            min-height: 200px;
             background: #e0e0e0;
         }
 
@@ -219,11 +299,22 @@
         <p>Seguimiento en tiempo real</p>
     </header>
 
+    <!-- ✅ Lista de Técnicos (RESTAURADO) -->
+    <div class="tecnicos-container">
+        <div class="tecnicos-title">Seleccionar Técnico</div>
+        <div class="tecnicos-list" id="tecnicos-list">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>Cargando técnicos...</div>
+            </div>
+        </div>
+    </div>
+
     <!-- Mapa -->
     <div id="map">
-        <div class="loading" id="loading">
+        <div class="loading" id="loading-map" style="display: none;">
             <div class="spinner"></div>
-            <div>Cargando técnicos...</div>
+            <div>Cargando mapa...</div>
         </div>
     </div>
 
@@ -236,8 +327,8 @@
             </span>
         </div>
         <div class="info-item">
-            <span class="info-label">Técnico</span>
-            <span class="info-value" id="tecnico-nombre">—</span>
+            <span class="info-label">Técnico Seleccionado</span>
+            <span class="info-value" id="tecnico-seleccionado">—</span>
         </div>
         <div class="info-item">
             <span class="info-label">Última posición enviada</span>
@@ -251,7 +342,7 @@
 
     <!-- Controles -->
     <div class="controls">
-        <button id="btn-iniciar" class="btn btn-iniciar">
+        <button id="btn-iniciar" class="btn btn-iniciar" disabled>
             ▶ Iniciar seguimiento
         </button>
         <button id="btn-detener" class="btn btn-detener" disabled>
@@ -278,11 +369,12 @@
             // 🔴 SUPABASE - Reemplaza con tus datos reales
             supabaseUrl: 'https://jxpeztieqwotfgswhzhx.supabase.co',
             supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk',
-            supabaseTable: 'ubicaciones',
+            supabaseTableUbicaciones: 'ubicaciones',
+            supabaseTableTecnicos: 'tecnicos',  // ← Tabla de técnicos
             
-            // Técnico (Puedes hacerlo dinámico si tienes login)
-            tecnicoId: 'TEC-001',
-            tecnicoNombre: 'Técnico Asignado'
+            // Técnico por defecto
+            tecnicoId: null,
+            tecnicoNombre: null
         };
 
         // Inicializar Supabase
@@ -292,22 +384,106 @@
         let map, marker;
         let isTracking = false;
         let lastLocation = null;
-        let supabaseSyncInterval = null;
+        let tecnicosData = [];
+
+        // ============================================
+        // ✅ CARGAR TÉCNICOS DESDE SUPABASE (RESTAURADO)
+        // ============================================
+        async function cargarTecnicos() {
+            const container = document.getElementById('tecnicos-list');
+            
+            try {
+                const { data, error } = await supabase
+                    .from(CONFIG.supabaseTableTecnicos)
+                    .select('*')
+                    .order('nombre', { ascending: true });
+                
+                if (error) {
+                    throw error;
+                }
+                
+                tecnicosData = data || [];
+                
+                if (tecnicosData.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: #666; padding: 20px;">
+                            No hay técnicos registrados
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Renderizar lista de técnicos
+                container.innerHTML = tecnicosData.map((tecnico, index) => `
+                    <div class="tecnico-item ${index === 0 ? 'selected' : ''}" 
+                         onclick="seleccionarTecnico(${tecnico.id}, '${tecnico.nombre.replace(/'/g, "\\'")}', this)">
+                        <div class="tecnico-avatar">${tecnico.nombre.charAt(0).toUpperCase()}</div>
+                        <div class="tecnico-info">
+                            <div class="tecnico-nombre">${tecnico.nombre}</div>
+                            <div class="tecnico-id">ID: ${tecnico.id}</div>
+                        </div>
+                        <div class="tecnico-estado ${tecnico.activo ? 'activo' : ''}"></div>
+                    </div>
+                `).join('');
+                
+                // Seleccionar el primero por defecto
+                if (tecnicosData.length > 0) {
+                    seleccionarTecnico(
+                        tecnicosData[0].id, 
+                        tecnicosData[0].nombre, 
+                        container.querySelector('.tecnico-item')
+                    );
+                }
+                
+                console.log(`✅ ${tecnicosData.length} técnicos cargados`);
+                
+            } catch (error) {
+                console.error('❌ Error cargando técnicos:', error.message);
+                container.innerHTML = `
+                    <div style="text-align: center; color: #c62828; padding: 20px;">
+                        Error cargando técnicos<br>
+                        <small>${error.message}</small>
+                    </div>
+                `;
+                mostrarMensaje('⚠️ Error cargando técnicos');
+            }
+        }
+
+        // ============================================
+        // ✅ SELECCIONAR TÉCNICO
+        // ============================================
+        function seleccionarTecnico(id, nombre, element) {
+            CONFIG.tecnicoId = id;
+            CONFIG.tecnicoNombre = nombre;
+            
+            // Actualizar UI
+            document.getElementById('tecnico-seleccionado').textContent = nombre;
+            
+            // Actualizar selección visual
+            document.querySelectorAll('.tecnico-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            if (element) {
+                element.classList.add('selected');
+            }
+            
+            // Habilitar botón de iniciar
+            document.getElementById('btn-iniciar').disabled = false;
+            
+            console.log(`✅ Técnico seleccionado: ${nombre} (ID: ${id})`);
+        }
 
         // ============================================
         // INICIALIZACIÓN DEL MAPA
         // ============================================
         function initMap() {
-            // Crear mapa centrado en Lima
             map = L.map('map').setView([CONFIG.centerLat, CONFIG.centerLng], CONFIG.zoom);
             
-            // Capa de OpenStreetMap
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19
             }).addTo(map);
             
-            // Icono personalizado para el marcador
             const techIcon = L.divIcon({
                 className: 'tech-marker',
                 html: `<div style="
@@ -327,14 +503,7 @@
                 iconAnchor: [16, 16]
             });
             
-            // Marcador inicial (oculto hasta primera ubicación)
             marker = L.marker([CONFIG.centerLat, CONFIG.centerLng], { icon: techIcon, opacity: 0 }).addTo(map);
-            
-            // Ocultar loading
-            document.getElementById('loading').style.display = 'none';
-            
-            // Cargar nombre del técnico
-            document.getElementById('tecnico-nombre').textContent = CONFIG.tecnicoNombre;
             
             console.log('✅ Mapa inicializado');
         }
@@ -367,15 +536,19 @@
         // ✅ SUPABASE: Guardar coordenadas
         // ============================================
         async function enviarASupabase(lat, lng, accuracy) {
-            // Validar configuración
             if (!CONFIG.supabaseUrl || CONFIG.supabaseUrl.includes('TU_PROYECTO')) {
                 console.warn('⚠️ Supabase no configurado correctamente');
                 return;
             }
             
+            if (!CONFIG.tecnicoId) {
+                console.warn('⚠️ No hay técnico seleccionado');
+                return;
+            }
+            
             try {
                 const { data, error } = await supabase
-                    .from(CONFIG.supabaseTable)
+                    .from(CONFIG.supabaseTableUbicaciones)
                     .insert([{
                         latitude: lat,
                         longitude: lng,
@@ -386,7 +559,6 @@
                 
                 if (error) {
                     console.error('❌ Error Supabase:', error.message);
-                    mostrarMensaje('⚠️ Error guardando ubicación');
                 } else {
                     console.log('✅ Coordenadas guardadas en Supabase');
                 }
@@ -405,11 +577,9 @@
                 statusEl.className = `status-badge ${activo ? 'status-activo' : 'status-inactivo'}`;
             }
             
-            // Actualizar estado de botones
-            document.getElementById('btn-iniciar').disabled = activo === true;
+            document.getElementById('btn-iniciar').disabled = activo === true || !CONFIG.tecnicoId;
             document.getElementById('btn-detener').disabled = activo === false;
             
-            // Mostrar mensaje flotante si se proporciona
             if (mensaje && !['Ubicación activa', 'Inactivo'].includes(mensaje)) {
                 mostrarMensaje(mensaje);
             }
@@ -454,6 +624,9 @@
         // EVENTOS DE LA INTERFAZ
         // ============================================
         document.addEventListener('DOMContentLoaded', function() {
+            // ✅ Cargar técnicos primero
+            cargarTecnicos();
+            
             // Inicializar mapa
             initMap();
             
@@ -463,10 +636,13 @@
             
             if (btnIniciar) {
                 btnIniciar.addEventListener('click', function() {
+                    if (!CONFIG.tecnicoId) {
+                        mostrarMensaje('⚠️ Selecciona un técnico primero');
+                        return;
+                    }
                     if (iniciarRastreoNativo()) {
                         // Android maneja el GPS nativo
                     } else {
-                        // Fallback para pruebas en navegador
                         console.log('⚠️ AndroidInterface no disponible - Modo prueba');
                         mostrarMensaje('Modo prueba: GPS del navegador');
                         iniciarConGeolocationNavegador();
@@ -522,20 +698,16 @@
         // ============================================
         // UTILIDADES
         // ============================================
-        
-        // Prevenir zoom accidental en móviles
         document.addEventListener('touchmove', function(event) {
             if (event.scale !== 1) {
                 event.preventDefault();
             }
         }, { passive: false });
         
-        // Manejar errores globales
         window.addEventListener('error', function(e) {
             console.error('Error global:', e.message);
         });
         
-        // Console log inicial
         console.log('🚗 Tecsycom Tracking App v1.0 - Cargado');
         console.log('📍 Centro: Lima, Perú (-12.0464, -77.0428)');
     </script>
