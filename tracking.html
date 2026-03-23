@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tracking">
+  <title>PeruFibra – Compartir Ubicación</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1865/1865269.png">
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/1865/1865269.png" type="image/x-icon">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- ✅ ESTILOS PROFESIONALES (SOLO CSS - SIN CAMBIAR LÓGICA) -->
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --card-bg: #ffffff;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+      --radius: 16px;
+      --radius-sm: 12px;
+      --radius-lg: 20px;
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-primary);
+      line-height: 1.5;
+    }
+    
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: var(--shadow-lg);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--success));
+    }
+    
+    .logo {
+      font-size: 56px;
+      margin-bottom: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      border-radius: 50%;
+      color: white;
+      box-shadow: var(--shadow-md);
+    }
+    
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      letter-spacing: -0.02em;
+    }
+    
+    .subtitle {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      margin-bottom: 24px;
+      font-weight: 400;
+    }
+    
+    /* Panel de login */
+    #login-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    select {
+      width: 100%;
+      padding: 14px 18px;
+      border: 2px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: #f9fafb;
+      color: var(--text-primary);
+      font-size: 1rem;
+      font-weight: 500;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 20px;
+      padding-right: 40px;
+    }
+    
+    select:focus {
+      border-color: var(--primary);
+      background-color: #fff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+    
+    select option {
+      background: white;
+      color: var(--text-primary);
+      padding: 12px;
+    }
+    
+    select:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .error-msg {
+      color: var(--danger);
+      font-size: 0.85rem;
+      font-weight: 500;
+      min-height: 20px;
+      text-align: center;
+      background: #fef2f2;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid #fecaca;
+    }
+    
+    /* Botones */
+    button {
+      width: 100%;
+      padding: 15px 20px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    button::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    button:hover::after {
+      left: 100%;
+    }
+    
+    #start-btn {
+      background: linear-gradient(135deg, var(--success), #059669);
+      color: white;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    }
+    
+    #start-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+    }
+    
+    #start-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    #start-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    /* Panel de estado */
+    #status-panel {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #dcfce7;
+      color: #166534;
+      border-radius: 50px;
+      padding: 10px 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 0 auto;
+      border: 1px solid #86efac;
+    }
+    
+    .pulse {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 1.5s ease-in-out infinite;
+      box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+      50% { opacity: 0.8; transform: scale(1.1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    
+    .info-box {
+      background: #f9fafb;
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      text-align: left;
+      border: 1px solid var(--border-color);
+      transition: border-color 0.2s;
+    }
+    
+    .info-box:hover {
+      border-color: var(--primary);
+    }
+    
+    .info-box label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+    
+    .info-box span {
+      color: var(--text-primary);
+      font-weight: 700;
+      font-size: 1rem;
+      word-break: break-all;
+    }
+    
+    #stop-btn {
+      background: linear-gradient(135deg, var(--danger), #dc2626);
+      color: white;
+      box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+      margin-top: 4px;
+    }
+    
+    #stop-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+    }
+    
+    #stop-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    #wakelock-msg,
+    #last-update,
+    #send-count {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: 4px;
+      font-weight: 500;
+    }
+    
+    /* Animaciones de entrada */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .card {
+      animation: fadeIn 0.3s ease-out;
+    }
+    
+    /* Responsive */
+    @media (max-width: 480px) {
+      .card {
+        padding: 24px 20px;
+        margin: 0 8px;
+      }
+      
+      .info-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      h2 {
+        font-size: 1.25rem;
+      }
+      
+      .logo {
+        width: 70px;
+        height: 70px;
+        font-size: 48px;
+      }
+    }
+    
+    /* Accesibilidad */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    /* Focus visible para navegación con teclado */
+    :focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <div class="logo">🚗</div>
+  <h2>Compartir Ubicación</h2>
+  <p class="subtitle">PeruFibra – Seguimiento en tiempo real</p>
+
+  <!-- ✅ PANEL LOGIN (MISMOS IDs - LÓGICA ORIGINAL 100%) -->
+  <div id="login-panel">
+    <select id="nombre-select"><option value="">Cargando técnicos...</option></select>
+    <p class="error-msg" id="error-msg"></p>
+    <button id="start-btn" onclick="startTracking()" disabled>▶ Iniciar seguimiento</button>
+  </div>
+
+  <!-- ✅ PANEL ESTADO (MISMOS IDs - LÓGICA ORIGINAL 100%) -->
+  <div id="status-panel">
+    <div class="status-badge"><div class="pulse"></div><span>Ubicación activa</span></div>
+    
+    <div class="info-grid">
+      <div class="info-box">
+        <label>Técnico</label>
+        <span id="display-nombre">—</span>
+      </div>
+      <div class="info-box">
+        <label>Coordenadas</label>
+        <span id="display-coords">Obteniendo GPS...</span>
+      </div>
+      <div class="info-box">
+        <label>Última actualización</label>
+        <span id="last-update">—</span>
+      </div>
+      <div class="info-box">
+        <label>Envíos</label>
+        <span id="send-count">0</span>
+      </div>
+    </div>
+    
+    <div id="wakelock-msg"></div>
+    <button id="stop-btn" onclick="stopTracking()">■ Detener seguimiento</button>
+  </div>
+</div>
+
+<script>
+// ============================================
+// 🔴 CONFIGURACIÓN SUPABASE (ORIGINAL - SIN CAMBIOS)
+// ============================================
+const SUPABASE_URL='https://jxpeztieqwotfgswhzhx.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+// Variables originales (SIN CAMBIOS)
+let watchId=null, fallbackInterval=null, nombre='', _channel=null, _lista=[], _wakeLock=null, _sendCount=0;
+
+// ✅ Variables NUEVAS para Android Nativo (no interfieren con lo original)
+let androidAvailable = false;
+
+// ============================================
+// ✅ FUNCIÓN NUEVA: Recibir coordenadas desde Android Nativo
+// (Se llama desde Kotlin vía webView.loadUrl("javascript:..."))
+// ============================================
+function actualizarUbicacion(lat, lng, accuracy) {
+    console.log(`📍 Android Nativo: ${lat}, ${lng} (±${accuracy}m)`);
+    // Reutiliza tu función original saveLocation para mantener compatibilidad con Supabase
+    if (nombre) {
+        saveLocation(lat, lng);
+    }
+}
+
+// ============================================
+// FUNCIONES ORIGINALES (SIN MODIFICAR LÓGICA)
+// ============================================
+async function sbLoadG(t){
+    const{data,error}=await sb.from(t).select('data').eq('id','global').single();
+    if(error)return null;
+    return data?.data??null;
+}
+
+window.addEventListener('load',async()=>{
+    // ✅ Detectar si estamos en APK con AndroidInterface (nuevo, no afecta UI)
+    if (window.AndroidInterface && typeof AndroidInterface.iniciarRastreo === 'function') {
+        androidAvailable = true;
+        console.log('✅ AndroidInterface detectado - GPS nativo disponible');
+    }
+    
+    const fbTL=await sbLoadG('technician_list');
+    const lista=Array.isArray(fbTL)?fbTL.sort():[];
+    _lista=lista;
+
+    const{data:activos}=await sb.from('user_locations').select('nombre');
+    const ocupados=new Set((activos||[]).map(u=>u.nombre.toUpperCase()));
+
+    const sel=document.getElementById('nombre-select');
+    sel.innerHTML='<option value="">— Selecciona tu nombre —</option>';
+    lista.forEach(t=>{
+        const o=document.createElement('option');
+        o.value=t;
+        const estaOcupado=ocupados.has(t.toUpperCase());
+        o.textContent=estaOcupado?`${t} (en uso)`:t;
+        o.disabled=estaOcupado;
+        o.style.color=estaOcupado?'#ef4444':'#1f2937';
+        sel.appendChild(o);
+    });
+
+    sel.addEventListener('change',()=>{
+        document.getElementById('start-btn').disabled=!sel.value;
+        document.getElementById('error-msg').textContent='';
+    });
+
+    const saved=localStorage.getItem('tracking_nombre');
+    if(saved){
+        const{data}=await sb.from('user_locations').select('nombre').eq('nombre',saved).single();
+        if(data){nombre=saved;showActivePanel(saved);startIntervals();}
+        else localStorage.removeItem('tracking_nombre');
+    }
+
+    _channel=sb.channel('tracking_ocupados')
+        .on('postgres_changes',{event:'*',schema:'public',table:'user_locations'},()=>{
+            if(document.getElementById('login-panel').style.display!=='none') refreshOcupados(lista);
+        })
+        .subscribe();
+});
+
+async function refreshOcupados(lista){
+    const{data:activos}=await sb.from('user_locations').select('nombre');
+    const ocupados=new Set((activos||[]).map(u=>u.nombre.toUpperCase()));
+    const sel=document.getElementById('nombre-select');
+    const currentVal=sel.value;
+    sel.innerHTML='<option value="">— Selecciona tu nombre —</option>';
+    lista.forEach(t=>{
+        const o=document.createElement('option');
+        o.value=t;
+        const estaOcupado=ocupados.has(t.toUpperCase());
+        o.textContent=estaOcupado?`${t} (en uso)`:t;
+        o.disabled=estaOcupado;
+        o.style.color=estaOcupado?'#ef4444':'#1f2937';
+        if(t===currentVal)o.selected=true;
+        sel.appendChild(o);
+    });
+    document.getElementById('start-btn').disabled=!sel.value||ocupados.has((sel.value||'').toUpperCase());
+}
+
+async function startTracking(){
+    const sel=document.getElementById('nombre-select');
+    const errEl=document.getElementById('error-msg');
+    errEl.textContent='';
+    if(!sel.value){errEl.textContent='Selecciona tu nombre para continuar.';return;}
+
+    const{data:activo}=await sb.from('user_locations').select('nombre').eq('nombre',sel.value).single();
+    if(activo){errEl.textContent='Este nombre ya está siendo usado. Selecciona otro.';return;}
+
+    nombre=sel.value;
+    _sendCount=0;
+    document.getElementById('start-btn').disabled=true;
+    document.getElementById('start-btn').textContent='Activando GPS...';
+
+    // ✅ Si estamos en APK con AndroidInterface, usar GPS nativo
+    if (androidAvailable) {
+        console.log('🚀 Iniciando rastreo nativo (Android)');
+        try {
+            AndroidInterface.iniciarRastreo();
+            localStorage.setItem('tracking_nombre', nombre);
+            showActivePanel(nombre);
+            activateWakeLock();
+            document.getElementById('start-btn').textContent='Seguimiento activo';
+            return;
+        } catch(e) {
+            console.error('Error llamando a AndroidInterface:', e);
+            androidAvailable = false;
+        }
+    }
+
+    // ✅ Fallback: GPS del navegador (código ORIGINAL)
+    if(!navigator.geolocation){errEl.textContent='Tu dispositivo no soporta GPS.';return;}
+    
+    navigator.geolocation.getCurrentPosition(
+        async(pos)=>{
+            await saveLocation(pos.coords.latitude,pos.coords.longitude);
+            localStorage.setItem('tracking_nombre',nombre);
+            showActivePanel(nombre);
+            activateWakeLock();
+            startIntervals();
+        },
+        (err)=>{
+            document.getElementById('start-btn').disabled=false;
+            document.getElementById('start-btn').textContent='▶ Iniciar seguimiento';
+            nombre='';
+            if(err.code===1) errEl.textContent='Permiso de ubicación denegado. Actívalo en ajustes.';
+            else if(err.code===3){
+                errEl.textContent='GPS lento, intentando de nuevo...';
+                navigator.geolocation.getCurrentPosition(
+                    async(pos)=>{
+                        errEl.textContent='';
+                        nombre=document.getElementById('nombre-select').value;
+                        await saveLocation(pos.coords.latitude,pos.coords.longitude);
+                        localStorage.setItem('tracking_nombre',nombre);
+                        showActivePanel(nombre);
+                        activateWakeLock();
+                        startIntervals();
+                    },
+                    ()=>{errEl.textContent='No se pudo obtener ubicación. Sal a un lugar con mejor señal GPS.';},
+                    {enableHighAccuracy:false,timeout:15000,maximumAge:30000}
+                );
+            }
+            else errEl.textContent='No se pudo obtener ubicación. Intenta de nuevo.';
+        },
+        {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+    );
+}
+
+function startIntervals(){
+    if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+    watchId=navigator.geolocation.watchPosition(
+        pos=>saveLocation(pos.coords.latitude,pos.coords.longitude),
+        err=>console.warn('watch error:',err),
+        {enableHighAccuracy:true,timeout:10000,maximumAge:0}
+    );
+
+    if(fallbackInterval) clearInterval(fallbackInterval);
+    fallbackInterval=setInterval(()=>{
+        if(!nombre) return;
+        navigator.geolocation.getCurrentPosition(
+            pos=>saveLocation(pos.coords.latitude,pos.coords.longitude),
+            err=>console.warn('fallback error:',err),
+            {enableHighAccuracy:true,timeout:8000,maximumAge:0}
+        );
+    },5000);
+}
+
+async function saveLocation(lat,lng){
+    if(!nombre) return;
+    const id=nombre.replace(/\s+/g,'_').toLowerCase();
+    const ts=new Date().toISOString();
+    const{error}=await sb.from('user_locations').upsert({id,nombre,lat,lng,updated_at:ts});
+    if(error){console.error('Error guardando:',error.message);return;}
+    _sendCount++;
+    document.getElementById('display-coords').textContent=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    document.getElementById('last-update').textContent=`${new Date().toLocaleTimeString('es-PE')}`;
+    document.getElementById('send-count').textContent=`${_sendCount}`;
+}
+
+function showActivePanel(n){
+    nombre=n;
+    document.getElementById('login-panel').style.display='none';
+    document.getElementById('status-panel').style.display='flex';
+    document.getElementById('display-nombre').textContent=n;
+    document.getElementById('start-btn').disabled=false;
+    document.getElementById('start-btn').textContent='▶ Iniciar seguimiento';
+}
+
+async function activateWakeLock(){
+    const msg=document.getElementById('wakelock-msg');
+    if('wakeLock' in navigator){
+        try{
+            _wakeLock=await navigator.wakeLock.request('screen');
+            if(msg) msg.textContent='🔒 Pantalla activa (GPS continuo)';
+            document.addEventListener('visibilitychange',async()=>{
+                if(_wakeLock!==null&&document.visibilityState==='visible'){
+                    try{_wakeLock=await navigator.wakeLock.request('screen');}catch(e){}
+                }
+            });
+        }catch(e){if(msg) msg.textContent='⚠ Mantén la pantalla encendida';}
+    } else {
+        if(msg) msg.textContent='⚠ Mantén la pantalla encendida';
+    }
+}
+
+async function stopTracking(){
+    if (androidAvailable) {
+        try {
+            AndroidInterface.detenerRastreo();
+            console.log('🛑 Deteniendo rastreo nativo');
+        } catch(e) {
+            console.error('Error deteniendo AndroidInterface:', e);
+        }
+    }
+    
+    if(watchId!==null){
+        try{navigator.geolocation.clearWatch(watchId);}catch(e){}
+        watchId=null;
+    }
+    if(fallbackInterval){clearInterval(fallbackInterval);fallbackInterval=null;}
+    if(_wakeLock){try{await _wakeLock.release();}catch(e){}_wakeLock=null;}
+
+    if(nombre){
+        const id=nombre.replace(/\s+/g,'_').toLowerCase();
+        for(let i=0;i<5;i++){
+            const{error}=await sb.from('user_locations').delete().eq('id',id);
+            if(!error){console.log('Ubicación eliminada OK');break;}
+            console.warn('Reintento eliminar:',i+1,error.message);
+            await new Promise(r=>setTimeout(r,800));
+        }
+    }
+
+    localStorage.removeItem('tracking_nombre');
+    localStorage.removeItem('gps_count');
+    nombre='';
+    _sendCount=0;
+
+    document.getElementById('status-panel').style.display='none';
+    document.getElementById('login-panel').style.display='flex';
+    document.getElementById('start-btn').disabled=true;
+    document.getElementById('start-btn').textContent='▶ Iniciar seguimiento';
+    document.getElementById('display-coords').textContent='Obteniendo GPS...';
+    document.getElementById('last-update').textContent='';
+    document.getElementById('send-count').textContent='0';
+
+    await refreshOcupados(_lista);
+}
+
+// ── Service Worker (PWA background GPS) ───────────────────────────────────────
+if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+        console.log('SW registrado:', reg.scope);
+        navigator.serviceWorker.addEventListener('message', event => {
+            if(event.data?.type==='REQUEST_GPS' && nombre){
+                navigator.geolocation.getCurrentPosition(
+                    pos=>saveLocation(pos.coords.latitude,pos.coords.longitude),
+                    err=>console.warn('SW GPS error:',err),
+                    {enableHighAccuracy:true,timeout:8000,maximumAge:0}
+                );
+            }
+        });
+    }).catch(err=>console.warn('SW error:',err));
+}
+
+// ── Prompt de instalación ──────────────────────────────────────────────────────
+let _installPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{
+    e.preventDefault();
+    _installPrompt=e;
+    const banner=document.createElement('div');
+    banner.id='install-banner';
+    banner.style.cssText='background:rgba(37,99,235,0.95);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:0.9rem;display:flex;align-items:center;justify-content:space-between;gap:12px;color:white;box-shadow:0 4px 12px rgba(0,0,0,0.15);';
+    banner.innerHTML=`<span style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">📲</span> Instala la app para GPS en segundo plano</span><button onclick="installApp()" style="padding:8px 16px;border-radius:8px;border:none;background:white;color:#2563eb;font-weight:600;font-size:0.85rem;cursor:pointer;white-space:nowrap;">Instalar</button>`;
+    document.querySelector('.card').insertBefore(banner, document.querySelector('.card').firstChild);
+});
+
+async function installApp(){
+    if(!_installPrompt) return;
+    _installPrompt.prompt();
+    const result=await _installPrompt.userChoice;
+    if(result.outcome==='accepted'){
+        document.getElementById('install-banner')?.remove();
+        _installPrompt=null;
+    }
+}
+</script>
+</body>
+</html>
