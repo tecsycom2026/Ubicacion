@@ -1,715 +1,411 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#1a73e8">
-    <meta name="description" content="PeruFibra – Seguimiento en tiempo real de técnicos">
-    
-    <title>PeruFibra – Compartir Ubicación</title>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Supabase JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f5f5f5;
-            color: #333;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* Header */
-        .header {
-            background: linear-gradient(135deg, #1a73e8, #0d47a1);
-            color: white;
-            padding: 16px;
-            text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        }
-        
-        .header h1 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-        
-        .header p {
-            font-size: 0.85rem;
-            opacity: 0.9;
-            margin-top: 4px;
-        }
-
-        /* Lista de técnicos */
-        .tecnicos-container {
-            background: white;
-            padding: 12px 16px;
-            border-bottom: 1px solid #e0e0e0;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        
-        .tecnicos-title {
-            font-size: 0.85rem;
-            color: #666;
-            margin-bottom: 8px;
-            font-weight: 500;
-        }
-        
-        .tecnicos-list {
-            display: grid;
-            gap: 8px;
-        }
-        
-        .tecnico-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 12px;
-            background: #f5f5f5;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-            border: 2px solid transparent;
-        }
-        
-        .tecnico-item:hover {
-            background: #e3f2fd;
-        }
-        
-        .tecnico-item.selected {
-            background: #e3f2fd;
-            border-color: #1a73e8;
-        }
-        
-        .tecnico-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: #1a73e8;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        
-        .tecnico-info {
-            flex: 1;
-        }
-        
-        .tecnico-nombre {
-            font-weight: 500;
-            font-size: 0.9rem;
-        }
-        
-        .tecnico-id {
-            font-size: 0.75rem;
-            color: #666;
-        }
-        
-        .tecnico-estado {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #bdbdbd;
-        }
-        
-        .tecnico-estado.activo {
-            background: #4caf50;
-        }
-
-        /* Mapa */
-        #map {
-            flex: 1;
-            width: 100%;
-            min-height: 200px;
-            background: #e0e0e0;
-        }
-
-        /* Panel de información */
-        .info-panel {
-            background: white;
-            padding: 12px 16px;
-            border-top: 1px solid #e0e0e0;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 0.85rem;
-        }
-        
-        .info-item {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        
-        .info-label {
-            color: #666;
-            font-size: 0.75rem;
-        }
-        
-        .info-value {
-            font-weight: 500;
-            color: #333;
-        }
-        
-        .status-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        
-        .status-activo {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-        
-        .status-inactivo {
-            background: #ffebee;
-            color: #c62828;
-        }
-
-        /* Controles */
-        .controls {
-            background: white;
-            padding: 12px 16px;
-            border-top: 1px solid #e0e0e0;
-            display: flex;
-            gap: 12px;
-        }
-        
-        .btn {
-            flex: 1;
-            padding: 14px;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-        
-        .btn-iniciar {
-            background: #2e7d32;
-            color: white;
-        }
-        
-        .btn-iniciar:active {
-            background: #1b5e20;
-            transform: scale(0.98);
-        }
-        
-        .btn-detener {
-            background: #c62828;
-            color: white;
-        }
-        
-        .btn-detener:active {
-            background: #b71c1c;
-            transform: scale(0.98);
-        }
-        
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-
-        /* Loading */
-        .loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            color: #666;
-            font-size: 0.9rem;
-        }
-        
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #e0e0e0;
-            border-top-color: #1a73e8;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 12px;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Mensajes */
-        .message {
-            position: fixed;
-            bottom: 100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #333;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            z-index: 1000;
-        }
-        
-        .message.show {
-            opacity: 1;
-        }
-
-        /* Responsive */
-        @media (max-width: 480px) {
-            .info-panel {
-                grid-template-columns: 1fr;
-            }
-            
-            .header h1 {
-                font-size: 1.1rem;
-            }
-        }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0077b6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tracking">
+  <title>Tecsycom – Compartir Ubicación</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1865/1865269.png">
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/1865/1865269.png" type="image/x-icon">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#1a1a2e,#16213e,#0f3460);color:white;font-family:sans-serif;padding:20px;}
+    .card{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:20px;padding:30px 24px;width:100%;max-width:360px;text-align:center;backdrop-filter:blur(10px);}
+    .logo{font-size:48px;margin-bottom:10px;}
+    h2{font-size:20px;margin-bottom:6px;font-weight:700;}
+    .subtitle{font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:24px;}
+    select,input{width:100%;padding:12px 16px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.1);color:white;font-size:15px;margin-bottom:12px;outline:none;cursor:pointer;}
+    select option{background:#16213e;color:white;}
+    select:focus,input:focus{border-color:rgba(255,255,255,0.5);background:rgba(255,255,255,0.15);}
+    button{width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#00b4d8,#0077b6);color:white;font-size:15px;font-weight:bold;cursor:pointer;transition:opacity .2s;touch-action:manipulation;}
+    button:hover{opacity:.9;}
+    button:disabled{opacity:.5;cursor:not-allowed;}
+    #status-panel{display:none;margin-top:4px;}
+    .status-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(40,167,69,0.2);border:1px solid #28a745;border-radius:30px;padding:8px 16px;font-size:13px;margin-bottom:16px;}
+    .pulse{width:10px;height:10px;border-radius:50%;background:#28a745;animation:pulse 1.5s ease-in-out infinite;}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+    .info-box{background:rgba(255,255,255,0.05);border-radius:12px;padding:14px;margin-bottom:12px;font-size:13px;text-align:left;}
+    .info-box label{color:rgba(255,255,255,0.5);font-size:11px;display:block;margin-bottom:2px;}
+    .info-box span{color:white;font-weight:600;}
+    #stop-btn{background:linear-gradient(135deg,#e63946,#c1121f);margin-top:8px;}
+    .error-msg{color:#ff6b6b;font-size:12px;margin-top:8px;min-height:18px;}
+    #last-update{font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;}
+    #wakelock-msg{font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;}
+    #send-count{font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;}
+    #android-status{font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;font-style:italic;}
+  </style>
 </head>
 <body>
+<div class="card">
+  <div class="logo">🚗</div>
+  <h2>Compartir Ubicación</h2>
+  <p class="subtitle">Tecsycom – Seguimiento en tiempo real</p>
 
-    <!-- Header -->
-    <header class="header">
-        <h1>🚗 PeruFibra – Compartir Ubicación</h1>
-        <p>Seguimiento en tiempo real</p>
-    </header>
+  <div id="login-panel">
+    <select id="nombre-select"><option value="">Cargando técnicos...</option></select>
+    <p class="error-msg" id="error-msg"></p>
+    <p id="android-status"></p>
+    <button id="start-btn" onclick="startTracking()" disabled>Iniciar seguimiento</button>
+  </div>
 
-    <!-- ✅ Lista de Técnicos (RESTAURADO) -->
-    <div class="tecnicos-container">
-        <div class="tecnicos-title">Seleccionar Técnico</div>
-        <div class="tecnicos-list" id="tecnicos-list">
-            <div class="loading">
-                <div class="spinner"></div>
-                <div>Cargando técnicos...</div>
-            </div>
-        </div>
+  <div id="status-panel">
+    <div class="status-badge"><div class="pulse"></div><span>Ubicación activa</span></div>
+    <div class="info-box">
+      <label>Técnico</label>
+      <span id="display-nombre">—</span>
     </div>
-
-    <!-- Mapa -->
-    <div id="map">
-        <div class="loading" id="loading-map" style="display: none;">
-            <div class="spinner"></div>
-            <div>Cargando mapa...</div>
-        </div>
+    <div class="info-box">
+      <label>Última posición enviada</label>
+      <span id="display-coords">Obteniendo GPS...</span>
+      <div id="last-update"></div>
+      <div id="send-count"></div>
     </div>
+    <div id="wakelock-msg"></div>
+    <button id="stop-btn" onclick="stopTracking()">Detener seguimiento</button>
+  </div>
+</div>
 
-    <!-- Panel de información -->
-    <div class="info-panel">
-        <div class="info-item">
-            <span class="info-label">Estado</span>
-            <span class="info-value">
-                <span id="estado-seguimiento" class="status-badge status-inactivo">Inactivo</span>
-            </span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">Técnico Seleccionado</span>
-            <span class="info-value" id="tecnico-seleccionado">—</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">Última posición enviada</span>
-            <span class="info-value" id="ultima-posicion">—</span>
-        </div>
-        <div class="info-item">
-            <span class="info-label">Precisión</span>
-            <span class="info-value" id="precision-gps">—</span>
-        </div>
-    </div>
+<script>
+// ============================================
+// 🔴 CONFIGURACIÓN SUPABASE (ORIGINAL)
+// ============================================
+const SUPABASE_URL='https://jxpeztieqwotfgswhzhx.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-    <!-- Controles -->
-    <div class="controls">
-        <button id="btn-iniciar" class="btn btn-iniciar" disabled>
-            ▶ Iniciar seguimiento
-        </button>
-        <button id="btn-detener" class="btn btn-detener" disabled>
-            ■ Detener seguimiento
-        </button>
-    </div>
+// Variables originales
+let watchId=null, fallbackInterval=null, nombre='', _channel=null, _lista=[], _wakeLock=null, _sendCount=0;
 
-    <!-- Mensajes flotantes -->
-    <div id="message" class="message"></div>
+// ✅ Variables para Android Nativo
+let isNativeTracking = false;
+let androidAvailable = false;
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+// ============================================
+// ✅ FUNCIÓN NUEVA: Recibir coordenadas desde Android Nativo
+// ============================================
+function actualizarUbicacion(lat, lng, accuracy) {
+    console.log(`📍 Android Nativo: ${lat}, ${lng} (±${accuracy}m)`);
     
-    <script>
-        // ============================================
-        // 🔴 CONFIGURACIÓN (EDITAR ESTO)
-        // ============================================
-        const CONFIG = {
-            // Mapa (Lima, Perú)
-            centerLat: -12.0464,
-            centerLng: -77.0428,
-            zoom: 13,
-            
-            // 🔴 SUPABASE - Reemplaza con tus datos reales
-            supabaseUrl: 'https://jxpeztieqwotfgswhzhx.supabase.co',
-            supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk',
-            supabaseTableUbicaciones: 'ubicaciones',
-            supabaseTableTecnicos: 'tecnicos',  // ← Tabla de técnicos
-            
-            // Técnico por defecto
-            tecnicoId: null,
-            tecnicoNombre: null
+    // Usar la función ORIGINAL saveLocation para mantener compatibilidad con Supabase
+    if (nombre) {
+        // Simular objeto Position para reutilizar saveLocation
+        const fakePosition = {
+            coords: { latitude: lat, longitude: lng, accuracy: accuracy }
         };
-
-        // Inicializar Supabase
-        const supabase = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
-
-        // Variables globales
-        let map, marker;
-        let isTracking = false;
-        let lastLocation = null;
-        let tecnicosData = [];
-
-        // ============================================
-        // ✅ CARGAR TÉCNICOS DESDE SUPABASE (RESTAURADO)
-        // ============================================
-        async function cargarTecnicos() {
-            const container = document.getElementById('tecnicos-list');
-            
-            try {
-                const { data, error } = await supabase
-                    .from(CONFIG.supabaseTableTecnicos)
-                    .select('*')
-                    .order('nombre', { ascending: true });
-                
-                if (error) {
-                    throw error;
-                }
-                
-                tecnicosData = data || [];
-                
-                if (tecnicosData.length === 0) {
-                    container.innerHTML = `
-                        <div style="text-align: center; color: #666; padding: 20px;">
-                            No hay técnicos registrados
-                        </div>
-                    `;
-                    return;
-                }
-                
-                // Renderizar lista de técnicos
-                container.innerHTML = tecnicosData.map((tecnico, index) => `
-                    <div class="tecnico-item ${index === 0 ? 'selected' : ''}" 
-                         onclick="seleccionarTecnico(${tecnico.id}, '${tecnico.nombre.replace(/'/g, "\\'")}', this)">
-                        <div class="tecnico-avatar">${tecnico.nombre.charAt(0).toUpperCase()}</div>
-                        <div class="tecnico-info">
-                            <div class="tecnico-nombre">${tecnico.nombre}</div>
-                            <div class="tecnico-id">ID: ${tecnico.id}</div>
-                        </div>
-                        <div class="tecnico-estado ${tecnico.activo ? 'activo' : ''}"></div>
-                    </div>
-                `).join('');
-                
-                // Seleccionar el primero por defecto
-                if (tecnicosData.length > 0) {
-                    seleccionarTecnico(
-                        tecnicosData[0].id, 
-                        tecnicosData[0].nombre, 
-                        container.querySelector('.tecnico-item')
-                    );
-                }
-                
-                console.log(`✅ ${tecnicosData.length} técnicos cargados`);
-                
-            } catch (error) {
-                console.error('❌ Error cargando técnicos:', error.message);
-                container.innerHTML = `
-                    <div style="text-align: center; color: #c62828; padding: 20px;">
-                        Error cargando técnicos<br>
-                        <small>${error.message}</small>
-                    </div>
-                `;
-                mostrarMensaje('⚠️ Error cargando técnicos');
-            }
-        }
-
-        // ============================================
-        // ✅ SELECCIONAR TÉCNICO
-        // ============================================
-        function seleccionarTecnico(id, nombre, element) {
-            CONFIG.tecnicoId = id;
-            CONFIG.tecnicoNombre = nombre;
-            
-            // Actualizar UI
-            document.getElementById('tecnico-seleccionado').textContent = nombre;
-            
-            // Actualizar selección visual
-            document.querySelectorAll('.tecnico-item').forEach(item => {
-                item.classList.remove('selected');
-            });
-            if (element) {
-                element.classList.add('selected');
-            }
-            
-            // Habilitar botón de iniciar
-            document.getElementById('btn-iniciar').disabled = false;
-            
-            console.log(`✅ Técnico seleccionado: ${nombre} (ID: ${id})`);
-        }
-
-        // ============================================
-        // INICIALIZACIÓN DEL MAPA
-        // ============================================
-        function initMap() {
-            map = L.map('map').setView([CONFIG.centerLat, CONFIG.centerLng], CONFIG.zoom);
-            
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
-            }).addTo(map);
-            
-            const techIcon = L.divIcon({
-                className: 'tech-marker',
-                html: `<div style="
-                    background: #1a73e8;
-                    color: white;
-                    width: 32px;
-                    height: 32px;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 18px;
-                    border: 3px solid white;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-                ">🚗</div>`,
-                iconSize: [32, 32],
-                iconAnchor: [16, 16]
-            });
-            
-            marker = L.marker([CONFIG.centerLat, CONFIG.centerLng], { icon: techIcon, opacity: 0 }).addTo(map);
-            
-            console.log('✅ Mapa inicializado');
-        }
-
-        // ============================================
-        // ✅ FUNCIÓN PRINCIPAL: Recibe datos de Android Nativo
-        // ============================================
-        function actualizarUbicacion(lat, lng, accuracy) {
-            console.log(`📍 Ubicación recibida: ${lat}, ${lng} (±${accuracy}m)`);
-            
-            lastLocation = { lat, lng, accuracy, timestamp: Date.now() };
-            
-            // Actualizar marcador en el mapa
-            if (marker) {
-                marker.setLatLng([lat, lng]);
-                marker.setOpacity(1);
-                map.panTo([lat, lng], { animate: true, duration: 0.5 });
-            }
-            
-            // Actualizar UI
-            document.getElementById('ultima-posicion').textContent = new Date().toLocaleTimeString('es-PE');
-            document.getElementById('precision-gps').textContent = `±${Math.round(accuracy)}m`;
-            actualizarUI('Ubicación actualizada', true);
-            
-            // ✅ Enviar a Supabase
-            enviarASupabase(lat, lng, accuracy);
-        }
-
-        // ============================================
-        // ✅ SUPABASE: Guardar coordenadas
-        // ============================================
-        async function enviarASupabase(lat, lng, accuracy) {
-            if (!CONFIG.supabaseUrl || CONFIG.supabaseUrl.includes('TU_PROYECTO')) {
-                console.warn('⚠️ Supabase no configurado correctamente');
-                return;
-            }
-            
-            if (!CONFIG.tecnicoId) {
-                console.warn('⚠️ No hay técnico seleccionado');
-                return;
-            }
-            
-            try {
-                const { data, error } = await supabase
-                    .from(CONFIG.supabaseTableUbicaciones)
-                    .insert([{
-                        latitude: lat,
-                        longitude: lng,
-                        accuracy: accuracy,
-                        timestamp: new Date().toISOString(),
-                        tecnico_id: CONFIG.tecnicoId
-                    }]);
-                
-                if (error) {
-                    console.error('❌ Error Supabase:', error.message);
-                } else {
-                    console.log('✅ Coordenadas guardadas en Supabase');
-                }
-            } catch (error) {
-                console.error('❌ Error de conexión:', error);
-            }
-        }
-
-        // ============================================
-        // UI: Actualizar estado visual
-        // ============================================
-        function actualizarUI(mensaje, activo = null) {
-            const statusEl = document.getElementById('estado-seguimiento');
-            if (statusEl) {
-                statusEl.textContent = activo === true ? 'Ubicación activa' : activo === false ? 'Inactivo' : mensaje;
-                statusEl.className = `status-badge ${activo ? 'status-activo' : 'status-inactivo'}`;
-            }
-            
-            document.getElementById('btn-iniciar').disabled = activo === true || !CONFIG.tecnicoId;
-            document.getElementById('btn-detener').disabled = activo === false;
-            
-            if (mensaje && !['Ubicación activa', 'Inactivo'].includes(mensaje)) {
-                mostrarMensaje(mensaje);
-            }
-        }
-
-        function mostrarMensaje(texto) {
-            const msg = document.getElementById('message');
-            msg.textContent = texto;
-            msg.classList.add('show');
-            setTimeout(() => msg.classList.remove('show'), 3000);
-        }
-
-        // ============================================
-        // 📱 ANDROID: Comunicación con Nativo (Kotlin)
-        // ============================================
-        function iniciarRastreoNativo() {
-            if (window.AndroidInterface && typeof AndroidInterface.iniciarRastreo === 'function') {
-                AndroidInterface.iniciarRastreo();
-                console.log('🚀 Solicitando inicio de rastreo nativo');
-                return true;
-            }
-            return false;
-        }
-
-        function detenerRastreoNativo() {
-            if (window.AndroidInterface && typeof AndroidInterface.detenerRastreo === 'function') {
-                AndroidInterface.detenerRastreo();
-                console.log('🛑 Solicitando detención de rastreo nativo');
-                return true;
-            }
-            return false;
-        }
-
-        function obtenerEstadoRastreo() {
-            if (window.AndroidInterface && typeof AndroidInterface.obtenerEstadoRastreo === 'function') {
-                return AndroidInterface.obtenerEstadoRastreo();
-            }
-            return 'desconocido';
-        }
-
-        // ============================================
-        // EVENTOS DE LA INTERFAZ
-        // ============================================
-        document.addEventListener('DOMContentLoaded', function() {
-            // ✅ Cargar técnicos primero
-            cargarTecnicos();
-            
-            // Inicializar mapa
-            initMap();
-            
-            // Configurar botones
-            const btnIniciar = document.getElementById('btn-iniciar');
-            const btnDetener = document.getElementById('btn-detener');
-            
-            if (btnIniciar) {
-                btnIniciar.addEventListener('click', function() {
-                    if (!CONFIG.tecnicoId) {
-                        mostrarMensaje('⚠️ Selecciona un técnico primero');
-                        return;
-                    }
-                    if (iniciarRastreoNativo()) {
-                        // Android maneja el GPS nativo
-                    } else {
-                        console.log('⚠️ AndroidInterface no disponible - Modo prueba');
-                        mostrarMensaje('Modo prueba: GPS del navegador');
-                        iniciarConGeolocationNavegador();
-                    }
-                });
-            }
-            
-            if (btnDetener) {
-                btnDetener.addEventListener('click', function() {
-                    if (detenerRastreoNativo()) {
-                        actualizarUI('Deteniendo...', null);
-                    }
-                });
-            }
-            
-            // Verificar si ya hay rastreo activo al cargar
-            setTimeout(() => {
-                const estado = obtenerEstadoRastreo();
-                if (estado === 'activo') {
-                    actualizarUI('Ubicación activa', true);
-                }
-            }, 500);
-        });
-
-        // ============================================
-        // FALLBACK: Geolocalización del Navegador (Pruebas)
-        // ============================================
-        function iniciarConGeolocationNavegador() {
-            if (!navigator.geolocation) {
-                mostrarMensaje('❌ Geolocalización no soportada');
-                return;
-            }
-            
-            navigator.geolocation.watchPosition(
-                (position) => {
-                    const { latitude, longitude, accuracy } = position.coords;
-                    actualizarUbicacion(latitude, longitude, accuracy);
-                },
-                (error) => {
-                    console.error('Error de geolocalización:', error);
-                    mostrarMensaje('⚠️ Error obteniendo ubicación');
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
-            
-            actualizarUI('Ubicación activa (navegador)', true);
-        }
-
-        // ============================================
-        // UTILIDADES
-        // ============================================
-        document.addEventListener('touchmove', function(event) {
-            if (event.scale !== 1) {
-                event.preventDefault();
-            }
-        }, { passive: false });
+        saveLocation(lat, lng);
         
-        window.addEventListener('error', function(e) {
-            console.error('Error global:', e.message);
+        // Actualizar UI adicional si es necesario
+        document.getElementById('display-coords').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        document.getElementById('last-update').textContent = new Date().toLocaleTimeString('es-PE');
+    }
+}
+
+// ============================================
+// FUNCIONES ORIGINALES (SIN MODIFICAR LÓGICA)
+// ============================================
+async function sbLoadG(t){
+    const{data,error}=await sb.from(t).select('data').eq('id','global').single();
+    if(error)return null;
+    return data?.data??null;
+}
+
+window.addEventListener('load',async()=>{
+    // Detectar si estamos en Android APK
+    detectarAndroidInterface();
+    
+    const fbTL=await sbLoadG('technician_list');
+    const lista=Array.isArray(fbTL)?fbTL.sort():[];
+    _lista=lista;
+
+    const{data:activos}=await sb.from('user_locations').select('nombre');
+    const ocupados=new Set((activos||[]).map(u=>u.nombre.toUpperCase()));
+
+    const sel=document.getElementById('nombre-select');
+    sel.innerHTML='<option value="">— Selecciona tu nombre —</option>';
+    lista.forEach(t=>{
+        const o=document.createElement('option');
+        o.value=t;
+        const estaOcupado=ocupados.has(t.toUpperCase());
+        o.textContent=estaOcupado?`${t} (en uso)`:t;
+        o.disabled=estaOcupado;
+        o.style.color=estaOcupado?'#ff8a8a':'white';
+        sel.appendChild(o);
+    });
+
+    sel.addEventListener('change',()=>{
+        document.getElementById('start-btn').disabled=!sel.value;
+        document.getElementById('error-msg').textContent='';
+    });
+
+    const saved=localStorage.getItem('tracking_nombre');
+    if(saved){
+        const{data}=await sb.from('user_locations').select('nombre').eq('nombre',saved).single();
+        if(data){nombre=saved;showActivePanel(saved);startIntervals();}
+        else localStorage.removeItem('tracking_nombre');
+    }
+
+    _channel=sb.channel('tracking_ocupados')
+        .on('postgres_changes',{event:'*',schema:'public',table:'user_locations'},()=>{
+            if(document.getElementById('login-panel').style.display!=='none') refreshOcupados(lista);
+        })
+        .subscribe();
+});
+
+// ✅ Detectar si AndroidInterface está disponible
+function detectarAndroidInterface() {
+    const statusEl = document.getElementById('android-status');
+    if (window.AndroidInterface && typeof AndroidInterface.iniciarRastreo === 'function') {
+        androidAvailable = true;
+        if (statusEl) statusEl.textContent = '📱 Modo APK: GPS nativo disponible';
+        console.log('✅ AndroidInterface detectado');
+    } else {
+        androidAvailable = false;
+        if (statusEl) statusEl.textContent = '🌐 Modo navegador: GPS del dispositivo';
+        console.log('⚠️ AndroidInterface no disponible - usando GPS del navegador');
+    }
+}
+
+async function refreshOcupados(lista){
+    const{data:activos}=await sb.from('user_locations').select('nombre');
+    const ocupados=new Set((activos||[]).map(u=>u.nombre.toUpperCase()));
+    const sel=document.getElementById('nombre-select');
+    const currentVal=sel.value;
+    sel.innerHTML='<option value="">— Selecciona tu nombre —</option>';
+    lista.forEach(t=>{
+        const o=document.createElement('option');
+        o.value=t;
+        const estaOcupado=ocupados.has(t.toUpperCase());
+        o.textContent=estaOcupado?`${t} (en uso)`:t;
+        o.disabled=estaOcupado;
+        o.style.color=estaOcupado?'#ff8a8a':'white';
+        if(t===currentVal)o.selected=true;
+        sel.appendChild(o);
+    });
+    document.getElementById('start-btn').disabled=!sel.value||ocupados.has((sel.value||'').toUpperCase());
+}
+
+async function startTracking(){
+    const sel=document.getElementById('nombre-select');
+    const errEl=document.getElementById('error-msg');
+    errEl.textContent='';
+    
+    if(!sel.value){errEl.textContent='Selecciona tu nombre para continuar.';return;}
+
+    const{data:activo}=await sb.from('user_locations').select('nombre').eq('nombre',sel.value).single();
+    if(activo){errEl.textContent='Este nombre ya está siendo usado. Selecciona otro.';return;}
+
+    nombre=sel.value;
+    _sendCount=0;
+    document.getElementById('start-btn').disabled=true;
+    document.getElementById('start-btn').textContent='Activando...';
+
+    // ✅ Si estamos en APK con AndroidInterface, usar GPS nativo
+    if (androidAvailable) {
+        console.log('🚀 Iniciando rastreo nativo (Android)');
+        try {
+            AndroidInterface.iniciarRastreo();
+            // Mostrar panel activo inmediatamente (el GPS lo maneja Android)
+            localStorage.setItem('tracking_nombre', nombre);
+            showActivePanel(nombre);
+            activateWakeLock();
+            // No iniciar intervals del navegador, Android maneja el GPS
+            document.getElementById('start-btn').textContent='Seguimiento activo';
+            return;
+        } catch(e) {
+            console.error('Error llamando a AndroidInterface:', e);
+            androidAvailable = false;
+            // Fallback a método del navegador
+        }
+    }
+
+    // ✅ Fallback: GPS del navegador (original)
+    if(!navigator.geolocation){errEl.textContent='Tu dispositivo no soporta GPS.';return;}
+    
+    navigator.geolocation.getCurrentPosition(
+        async(pos)=>{
+            await saveLocation(pos.coords.latitude,pos.coords.longitude);
+            localStorage.setItem('tracking_nombre',nombre);
+            showActivePanel(nombre);
+            activateWakeLock();
+            startIntervals();
+        },
+        (err)=>{
+            document.getElementById('start-btn').disabled=false;
+            document.getElementById('start-btn').textContent='Iniciar seguimiento';
+            nombre='';
+            if(err.code===1) errEl.textContent='Permiso de ubicación denegado. Actívalo en ajustes.';
+            else if(err.code===3){
+                errEl.textContent='GPS lento, intentando de nuevo...';
+                navigator.geolocation.getCurrentPosition(
+                    async(pos)=>{
+                        errEl.textContent='';
+                        nombre=document.getElementById('nombre-select').value;
+                        await saveLocation(pos.coords.latitude,pos.coords.longitude);
+                        localStorage.setItem('tracking_nombre',nombre);
+                        showActivePanel(nombre);
+                        activateWakeLock();
+                        startIntervals();
+                    },
+                    ()=>{errEl.textContent='No se pudo obtener ubicación. Sal a un lugar con mejor señal GPS.';},
+                    {enableHighAccuracy:false,timeout:15000,maximumAge:30000}
+                );
+            }
+            else errEl.textContent='No se pudo obtener ubicación. Intenta de nuevo.';
+        },
+        {enableHighAccuracy:true,timeout:15000,maximumAge:0}
+    );
+}
+
+function startIntervals(){
+    if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+    watchId=navigator.geolocation.watchPosition(
+        pos=>saveLocation(pos.coords.latitude,pos.coords.longitude),
+        err=>console.warn('watch error:',err),
+        {enableHighAccuracy:true,timeout:10000,maximumAge:0}
+    );
+
+    if(fallbackInterval) clearInterval(fallbackInterval);
+    fallbackInterval=setInterval(()=>{
+        if(!nombre) return;
+        navigator.geolocation.getCurrentPosition(
+            pos=>saveLocation(pos.coords.latitude,pos.coords.longitude),
+            err=>console.warn('fallback error:',err),
+            {enableHighAccuracy:true,timeout:8000,maximumAge:0}
+        );
+    },5000);
+}
+
+async function saveLocation(lat,lng){
+    if(!nombre) return;
+    const id=nombre.replace(/\s+/g,'_').toLowerCase();
+    const ts=new Date().toISOString();
+    const{error}=await sb.from('user_locations').upsert({id,nombre,lat,lng,updated_at:ts});
+    if(error){console.error('Error guardando:',error.message);return;}
+    _sendCount++;
+    document.getElementById('display-coords').textContent=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    document.getElementById('last-update').textContent=`${new Date().toLocaleTimeString('es-PE')}`;
+    document.getElementById('send-count').textContent=`Envíos: ${_sendCount}`;
+}
+
+function showActivePanel(n){
+    nombre=n;
+    document.getElementById('login-panel').style.display='none';
+    document.getElementById('status-panel').style.display='block';
+    document.getElementById('display-nombre').textContent=n;
+    document.getElementById('start-btn').disabled=false;
+    document.getElementById('start-btn').textContent='Iniciar seguimiento';
+}
+
+async function activateWakeLock(){
+    const msg=document.getElementById('wakelock-msg');
+    if('wakeLock' in navigator){
+        try{
+            _wakeLock=await navigator.wakeLock.request('screen');
+            if(msg) msg.textContent='🔒 Pantalla activa (GPS continuo)';
+            document.addEventListener('visibilitychange',async()=>{
+                if(_wakeLock!==null&&document.visibilityState==='visible'){
+                    try{_wakeLock=await navigator.wakeLock.request('screen');}catch(e){}
+                }
+            });
+        }catch(e){if(msg) msg.textContent='⚠ Mantén la pantalla encendida';}
+    } else {
+        if(msg) msg.textContent='⚠ Mantén la pantalla encendida';
+    }
+}
+
+async function stopTracking(){
+    // ✅ Si estamos en modo nativo, detener vía AndroidInterface
+    if (androidAvailable && isNativeTracking) {
+        try {
+            AndroidInterface.detenerRastreo();
+            console.log('🛑 Deteniendo rastreo nativo');
+        } catch(e) {
+            console.error('Error deteniendo AndroidInterface:', e);
+        }
+    }
+    
+    // ✅ Detener GPS del navegador (original - siempre ejecutar por seguridad)
+    if(watchId!==null){
+        try{navigator.geolocation.clearWatch(watchId);}catch(e){}
+        watchId=null;
+    }
+    if(fallbackInterval){clearInterval(fallbackInterval);fallbackInterval=null;}
+    if(_wakeLock){try{await _wakeLock.release();}catch(e){}_wakeLock=null;}
+
+    // ✅ Eliminar de Supabase (original)
+    if(nombre){
+        const id=nombre.replace(/\s+/g,'_').toLowerCase();
+        for(let i=0;i<5;i++){
+            const{error}=await sb.from('user_locations').delete().eq('id',id);
+            if(!error){console.log('Ubicación eliminada OK');break;}
+            console.warn('Reintento eliminar:',i+1,error.message);
+            await new Promise(r=>setTimeout(r,800));
+        }
+    }
+
+    // ✅ Limpiar estado (original)
+    localStorage.removeItem('tracking_nombre');
+    localStorage.removeItem('gps_count');
+    nombre='';
+    _sendCount=0;
+    isNativeTracking = false;
+
+    // ✅ Resetear UI (original)
+    document.getElementById('status-panel').style.display='none';
+    document.getElementById('login-panel').style.display='block';
+    document.getElementById('start-btn').disabled=true;
+    document.getElementById('start-btn').textContent='Iniciar seguimiento';
+    document.getElementById('display-coords').textContent='Obteniendo GPS...';
+    document.getElementById('last-update').textContent='';
+    document.getElementById('send-count').textContent='';
+
+    // ✅ Refrescar lista (original)
+    await refreshOcupados(_lista);
+}
+
+// ── Service Worker (PWA background GPS) ───────────────────────────────────────
+if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+        console.log('SW registrado:', reg.scope);
+        navigator.serviceWorker.addEventListener('message', event => {
+            if(event.data?.type==='REQUEST_GPS' && nombre){
+                navigator.geolocation.getCurrentPosition(
+                    pos=>saveLocation(pos.coords.latitude,pos.coords.longitude),
+                    err=>console.warn('SW GPS error:',err),
+                    {enableHighAccuracy:true,timeout:8000,maximumAge:0}
+                );
+            }
         });
-        
-        console.log('🚗 PeruFibra Tracking App v1.0 - Cargado');
-        console.log('📍 Centro: Lima, Perú (-12.0464, -77.0428)');
-    </script>
+    }).catch(err=>console.warn('SW error:',err));
+}
+
+// ── Prompt de instalación ──────────────────────────────────────────────────────
+let _installPrompt=null;
+window.addEventListener('beforeinstallprompt', e=>{
+    e.preventDefault();
+    _installPrompt=e;
+    const banner=document.createElement('div');
+    banner.id='install-banner';
+    banner.style.cssText='background:rgba(0,119,182,0.9);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:10px;';
+    banner.innerHTML=`<span>📲 Instala la app para GPS en segundo plano</span><button onclick="installApp()" style="padding:5px 12px;border-radius:6px;border:none;background:white;color:#0077b6;font-weight:bold;font-size:12px;cursor:pointer;width:auto;">Instalar</button>`;
+    document.querySelector('.card').insertBefore(banner, document.querySelector('.card').firstChild);
+});
+
+async function installApp(){
+    if(!_installPrompt) return;
+    _installPrompt.prompt();
+    const result=await _installPrompt.userChoice;
+    if(result.outcome==='accepted'){
+        document.getElementById('install-banner')?.remove();
+        _installPrompt=null;
+    }
+}
+</script>
 </body>
 </html>
