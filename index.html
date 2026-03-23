@@ -38,7 +38,6 @@
     #last-update{font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;}
     #wakelock-msg{font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:8px;}
     #send-count{font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;}
-    #android-status{font-size:11px;color:rgba(255,255,255,0.6);margin-top:4px;font-style:italic;}
   </style>
 </head>
 <body>
@@ -50,7 +49,6 @@
   <div id="login-panel">
     <select id="nombre-select"><option value="">Cargando técnicos...</option></select>
     <p class="error-msg" id="error-msg"></p>
-    <p id="android-status"></p>
     <button id="start-btn" onclick="startTracking()" disabled>Iniciar seguimiento</button>
   </div>
 
@@ -73,41 +71,32 @@
 
 <script>
 // ============================================
-// 🔴 CONFIGURACIÓN SUPABASE (ORIGINAL)
+// 🔴 CONFIGURACIÓN SUPABASE (ORIGINAL - SIN CAMBIOS)
 // ============================================
 const SUPABASE_URL='https://jxpeztieqwotfgswhzhx.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
-// Variables originales
+// Variables originales (SIN CAMBIOS)
 let watchId=null, fallbackInterval=null, nombre='', _channel=null, _lista=[], _wakeLock=null, _sendCount=0;
 
-// ✅ Variables para Android Nativo
-let isNativeTracking = false;
+// ✅ Variables NUEVAS para Android Nativo (no interfieren con lo original)
 let androidAvailable = false;
 
 // ============================================
 // ✅ FUNCIÓN NUEVA: Recibir coordenadas desde Android Nativo
+// (Se llama desde Kotlin vía webView.loadUrl("javascript:..."))
 // ============================================
 function actualizarUbicacion(lat, lng, accuracy) {
     console.log(`📍 Android Nativo: ${lat}, ${lng} (±${accuracy}m)`);
-    
-    // Usar la función ORIGINAL saveLocation para mantener compatibilidad con Supabase
+    // Reutiliza tu función original saveLocation para mantener compatibilidad con Supabase
     if (nombre) {
-        // Simular objeto Position para reutilizar saveLocation
-        const fakePosition = {
-            coords: { latitude: lat, longitude: lng, accuracy: accuracy }
-        };
         saveLocation(lat, lng);
-        
-        // Actualizar UI adicional si es necesario
-        document.getElementById('display-coords').textContent = `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-        document.getElementById('last-update').textContent = new Date().toLocaleTimeString('es-PE');
     }
 }
 
 // ============================================
-// FUNCIONES ORIGINALES (SIN MODIFICAR LÓGICA)
+// FUNCIONES ORIGINALES (SIN MODIFICAR LÓGICA VISUAL NI DE SUPABASE)
 // ============================================
 async function sbLoadG(t){
     const{data,error}=await sb.from(t).select('data').eq('id','global').single();
@@ -116,8 +105,11 @@ async function sbLoadG(t){
 }
 
 window.addEventListener('load',async()=>{
-    // Detectar si estamos en Android APK
-    detectarAndroidInterface();
+    // ✅ Detectar si estamos en APK con AndroidInterface (nuevo, no afecta UI)
+    if (window.AndroidInterface && typeof AndroidInterface.iniciarRastreo === 'function') {
+        androidAvailable = true;
+        console.log('✅ AndroidInterface detectado - GPS nativo disponible');
+    }
     
     const fbTL=await sbLoadG('technician_list');
     const lista=Array.isArray(fbTL)?fbTL.sort():[];
@@ -157,20 +149,6 @@ window.addEventListener('load',async()=>{
         .subscribe();
 });
 
-// ✅ Detectar si AndroidInterface está disponible
-function detectarAndroidInterface() {
-    const statusEl = document.getElementById('android-status');
-    if (window.AndroidInterface && typeof AndroidInterface.iniciarRastreo === 'function') {
-        androidAvailable = true;
-        if (statusEl) statusEl.textContent = '📱 Modo APK: GPS nativo disponible';
-        console.log('✅ AndroidInterface detectado');
-    } else {
-        androidAvailable = false;
-        if (statusEl) statusEl.textContent = '🌐 Modo navegador: GPS del dispositivo';
-        console.log('⚠️ AndroidInterface no disponible - usando GPS del navegador');
-    }
-}
-
 async function refreshOcupados(lista){
     const{data:activos}=await sb.from('user_locations').select('nombre');
     const ocupados=new Set((activos||[]).map(u=>u.nombre.toUpperCase()));
@@ -194,7 +172,6 @@ async function startTracking(){
     const sel=document.getElementById('nombre-select');
     const errEl=document.getElementById('error-msg');
     errEl.textContent='';
-    
     if(!sel.value){errEl.textContent='Selecciona tu nombre para continuar.';return;}
 
     const{data:activo}=await sb.from('user_locations').select('nombre').eq('nombre',sel.value).single();
@@ -203,28 +180,28 @@ async function startTracking(){
     nombre=sel.value;
     _sendCount=0;
     document.getElementById('start-btn').disabled=true;
-    document.getElementById('start-btn').textContent='Activando...';
+    document.getElementById('start-btn').textContent='Activando GPS...';
 
     // ✅ Si estamos en APK con AndroidInterface, usar GPS nativo
     if (androidAvailable) {
         console.log('🚀 Iniciando rastreo nativo (Android)');
         try {
             AndroidInterface.iniciarRastreo();
-            // Mostrar panel activo inmediatamente (el GPS lo maneja Android)
+            // Mostrar panel activo (el GPS lo maneja Android en segundo plano)
             localStorage.setItem('tracking_nombre', nombre);
             showActivePanel(nombre);
             activateWakeLock();
-            // No iniciar intervals del navegador, Android maneja el GPS
+            // No iniciar intervals del navegador para evitar duplicidad
             document.getElementById('start-btn').textContent='Seguimiento activo';
             return;
         } catch(e) {
             console.error('Error llamando a AndroidInterface:', e);
             androidAvailable = false;
-            // Fallback a método del navegador
+            // Fallback a método del navegador si falla
         }
     }
 
-    // ✅ Fallback: GPS del navegador (original)
+    // ✅ Fallback: GPS del navegador (código ORIGINAL sin cambios)
     if(!navigator.geolocation){errEl.textContent='Tu dispositivo no soporta GPS.';return;}
     
     navigator.geolocation.getCurrentPosition(
@@ -321,7 +298,7 @@ async function activateWakeLock(){
 
 async function stopTracking(){
     // ✅ Si estamos en modo nativo, detener vía AndroidInterface
-    if (androidAvailable && isNativeTracking) {
+    if (androidAvailable) {
         try {
             AndroidInterface.detenerRastreo();
             console.log('🛑 Deteniendo rastreo nativo');
@@ -330,7 +307,7 @@ async function stopTracking(){
         }
     }
     
-    // ✅ Detener GPS del navegador (original - siempre ejecutar por seguridad)
+    // ✅ Detener GPS del navegador (código ORIGINAL - siempre ejecutar por seguridad)
     if(watchId!==null){
         try{navigator.geolocation.clearWatch(watchId);}catch(e){}
         watchId=null;
@@ -338,7 +315,7 @@ async function stopTracking(){
     if(fallbackInterval){clearInterval(fallbackInterval);fallbackInterval=null;}
     if(_wakeLock){try{await _wakeLock.release();}catch(e){}_wakeLock=null;}
 
-    // ✅ Eliminar de Supabase (original)
+    // ✅ Eliminar de Supabase (código ORIGINAL sin cambios)
     if(nombre){
         const id=nombre.replace(/\s+/g,'_').toLowerCase();
         for(let i=0;i<5;i++){
@@ -349,14 +326,13 @@ async function stopTracking(){
         }
     }
 
-    // ✅ Limpiar estado (original)
+    // ✅ Limpiar estado (código ORIGINAL sin cambios)
     localStorage.removeItem('tracking_nombre');
     localStorage.removeItem('gps_count');
     nombre='';
     _sendCount=0;
-    isNativeTracking = false;
 
-    // ✅ Resetear UI (original)
+    // ✅ Resetear UI (código ORIGINAL sin cambios)
     document.getElementById('status-panel').style.display='none';
     document.getElementById('login-panel').style.display='block';
     document.getElementById('start-btn').disabled=true;
@@ -365,7 +341,7 @@ async function stopTracking(){
     document.getElementById('last-update').textContent='';
     document.getElementById('send-count').textContent='';
 
-    // ✅ Refrescar lista (original)
+    // ✅ Refrescar lista (código ORIGINAL sin cambios)
     await refreshOcupados(_lista);
 }
 
