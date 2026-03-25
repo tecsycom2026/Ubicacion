@@ -84,7 +84,6 @@
         }
         .connection-status { text-align: center; font-size: 12px; color: #999; margin-top: 15px; }
         
-        /* Selector de técnicos */
         .tecnico-selector {
             background: #f8f9fa;
             border-radius: 10px;
@@ -107,25 +106,6 @@
             font-size: 16px;
             background: white;
         }
-        
-        /* Debug panel */
-        .debug-panel {
-            background: #1a1a2e;
-            color: #00ff88;
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 20px;
-            font-size: 12px;
-            font-family: monospace;
-            max-height: 150px;
-            overflow-y: auto;
-            display: none;
-        }
-        .debug-panel.show { display: block; }
-        .debug-panel p { margin: 5px 0; }
-        .debug-error { color: #ff4444; }
-        .debug-success { color: #00ff88; }
-        .debug-info { color: #88ccff; }
     </style>
 </head>
 <body>
@@ -181,33 +161,21 @@
             <div class="connection-status">
                 <span id="connectionStatus">📡 Estado: Esperando</span>
             </div>
-
-            <!-- Panel de Debug -->
-            <div id="debugPanel" class="debug-panel">
-                <p class="debug-info">🔍 Panel de Debug</p>
-            </div>
         </div>
     </div>
 
     <script>
-        // ==================== CONFIGURACIÓN SUPABASE ====================
-        // ⚠️ CONFIGURA ESTO CON TUS DATOS REALES DE SUPABASE
+        // ==================== CONFIGURACIÓN SUPABASE (MISMO QUE ORIGINAL) ====================
         const SUPABASE_URL = 'https://jxpeztieqwotfgswhzhx.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
+        
+        // Tablas identificadas en tu código original
         const TABLE_TECNICOS = 'tecnicos';
         const TABLE_UBICACIONES = 'ubicaciones';
         
-        // Modo Demo (si Supabase falla, usa datos locales)
-        const MODO_DEMO = true; // Cambiar a false cuando tengas Supabase configurado
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         
-        let supabase = null;
-        try {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        } catch (e) {
-            logDebug('Error creando cliente Supabase: ' + e.message, 'error');
-        }
-        
-        // ==================== VARIABLES GLOBALES ====================
+        // ==================== VARIABLES GLOBALES (MISMO QUE ORIGINAL) ====================
         let watchId = null;
         let isTracking = false;
         let sendCount = 0;
@@ -232,80 +200,45 @@
         const tecnicoSelectorEl = document.getElementById('tecnicoSelector');
         const tecnicoSelectEl = document.getElementById('tecnicoSelect');
         const btnConfirmTecnico = document.getElementById('btnConfirmTecnico');
-        const debugPanelEl = document.getElementById('debugPanel');
 
-        // ==================== DEBUG ====================
-        function logDebug(message, type = 'info') {
-            const p = document.createElement('p');
-            p.className = 'debug-' + type;
-            p.textContent = new Date().toLocaleTimeString() + ' - ' + message;
-            debugPanelEl.appendChild(p);
-            debugPanelEl.scrollTop = debugPanelEl.scrollHeight;
-            console.log('[DEBUG]', message);
-        }
-
-        // ==================== INICIALIZACIÓN ====================
-        window.addEventListener('load', async () => {
-            logDebug('App iniciada');
-            await sbLoadG();
-            configurarEventos();
-            verificarConexion();
-        });
-
-        // ==================== CARGA DE TÉCNICOS ====================
+        // ==================== FUNCIÓN ORIGINAL sbLoadG (MANTENIDA 100%) ====================
         async function sbLoadG() {
-            logDebug('Cargando técnicos...');
-            
-            if (MODO_DEMO || !supabase) {
-                logDebug('Usando modo DEMO (Supabase no configurado)', 'info');
-                await cargarTecnicosDemo();
-                return;
-            }
-            
             try {
+                // Consulta original a tabla 'tecnicos' con columnas originales
                 const { data, error } = await supabase
                     .from(TABLE_TECNICOS)
-                    .select('*');
+                    .select('id, nombre, dni, telefono, estado');
                 
                 if (error) {
+                    console.error('Error cargando técnicos:', error);
                     throw error;
                 }
                 
                 if (data && data.length > 0) {
                     tecnicosList = data;
-                    logDebug(`✅ ${data.length} técnicos cargados`, 'success');
+                    console.log(`✅ ${data.length} técnicos cargados`);
                     mostrarSelectorTecnicos();
                 } else {
-                    logDebug('⚠ No hay técnicos en la base de datos', 'error');
-                    await cargarTecnicosDemo();
+                    console.warn('⚠ No hay técnicos en la base de datos');
+                    tecnicoNameEl.textContent = 'Sin técnicos disponibles';
                 }
                 
             } catch (error) {
-                logDebug('❌ Error Supabase: ' + error.message, 'error');
-                logDebug('Cambiando a modo DEMO automáticamente', 'info');
-                await cargarTecnicosDemo();
+                console.error('❌ Error en sbLoadG:', error.message);
+                tecnicoNameEl.textContent = 'Error de conexión';
             } finally {
                 loadingEl.style.display = 'none';
                 mainContentEl.style.display = 'block';
-                debugPanelEl.classList.add('show');
             }
         }
 
-        // ==================== MODO DEMO ====================
-        async function cargarTecnicosDemo() {
-            logDebug('Cargando técnicos de demostración...', 'info');
-            
-            // Datos de ejemplo para pruebas
-            tecnicosList = [
-                { id: 'DEMO-001', nombre: 'Juan Pérez', dni: '12345678' },
-                { id: 'DEMO-002', nombre: 'María García', dni: '87654321' },
-                { id: 'DEMO-003', nombre: 'Carlos López', dni: '11223344' }
-            ];
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            mostrarSelectorTecnicos();
-            logDebug('✅ Modo DEMO activado', 'success');
-        }
+        // ==================== EVENTO DE CARGA ORIGINAL (MANTENIDO 100%) ====================
+        window.addEventListener('load', async () => {
+            console.log('🚀 App cargada - Iniciando sbLoadG...');
+            await sbLoadG();
+            configurarEventos();
+            verificarConexion();
+        });
 
         // ==================== SELECTOR DE TÉCNICOS ====================
         function mostrarSelectorTecnicos() {
@@ -315,11 +248,9 @@
             tecnicosList.forEach((tecnico, index) => {
                 const option = document.createElement('option');
                 option.value = index;
-                option.textContent = tecnico.nombre || `Técnico ${index + 1}`;
+                option.textContent = `${tecnico.nombre} (${tecnico.dni || 'Sin DNI'})`;
                 tecnicoSelectEl.appendChild(option);
             });
-            
-            logDebug('Selector de técnicos mostrado');
         }
 
         btnConfirmTecnico.addEventListener('click', () => {
@@ -335,24 +266,24 @@
             tecnicoSelectorEl.classList.remove('show');
             btnStart.disabled = false;
             
-            logDebug(`✅ Técnico seleccionado: ${tecnicoData.nombre}`, 'success');
+            console.log(`✅ Técnico seleccionado: ${tecnicoData.nombre} (ID: ${tecnicoData.id})`);
         });
 
-        // ==================== EVENTOS Y RECONEXIÓN ====================
+        // ==================== EVENTOS Y RECONEXIÓN (NUEVO + ORIGINAL) ====================
         function configurarEventos() {
             btnStart.addEventListener('click', iniciarSeguimiento);
             btnStop.addEventListener('click', detenerSeguimiento);
             
-            // 🔥 RECONEXIÓN AUTOMÁTICA AL VOLVER A PRIMER PLANO
+            // 🔥 RECONEXIÓN AUTOMÁTICA - NUEVA FUNCIONALIDAD
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
-                    logDebug('📱 App volvió a primer plano');
+                    console.log('📱 App volvió a primer plano - Verificando GPS...');
                     actualizarEstadoConexion();
                     
                     if (isTracking) {
                         setTimeout(() => {
                             reiniciarGPS();
-                            logDebug('🔄 GPS reiniciado automáticamente', 'success');
+                            console.log('🔄 GPS reiniciado automáticamente');
                         }, 500);
                     }
                 }
@@ -368,13 +299,13 @@
             
             document.addEventListener('resume', () => {
                 if (isTracking) {
-                    logDebug('🔄 App reanudada');
+                    console.log('🔄 App reanudada - Reiniciando GPS');
                     reiniciarGPS();
                 }
             });
         }
 
-        // ==================== LÓGICA DE GPS ====================
+        // ==================== LÓGICA DE GPS (ORIGINAL + OPTIMIZACIÓN) ====================
         function iniciarSeguimiento() {
             if (!tecnicoData) {
                 alert('Primero selecciona un técnico');
@@ -395,7 +326,7 @@
             iniciarGPS();
             actualizarEstadoConexion();
             
-            logDebug('✅ Seguimiento iniciado', 'success');
+            console.log('✅ Seguimiento iniciado');
         }
 
         function detenerSeguimiento() {
@@ -415,20 +346,20 @@
             coordinatesEl.textContent = '—';
             connectionStatusEl.textContent = '📡 Estado: Detenido';
             
-            logDebug('⏹ Seguimiento detenido');
+            console.log('⏹ Seguimiento detenido');
         }
 
         function iniciarGPS() {
             if (!('geolocation' in navigator)) {
                 actualizarUI('error', '⚠ GPS no disponible', 'red');
-                logDebug('❌ GPS no disponible en este dispositivo', 'error');
                 return;
             }
 
+            // 🔥 OPTIMIZACIÓN DE BATERÍA (NUEVO)
             const opcionesGPS = {
-                enableHighAccuracy: false,
+                enableHighAccuracy: false, // Usa redes en vez de satélite puro
                 timeout: 10000,
-                maximumAge: 30000
+                maximumAge: 30000 // Acepta ubicación de hace 30 seg
             };
 
             watchId = navigator.geolocation.watchPosition(
@@ -443,10 +374,9 @@
                     actualizarCoordenadas(coords);
                     enviarUbicacion(coords);
                     reconnectAttempts = 0;
-                    logDebug(`📍 Ubicación: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`, 'success');
                 },
                 (error) => {
-                    logDebug('❌ Error GPS: ' + error.message, 'error');
+                    console.error('❌ Error GPS:', error.message);
                     let mensaje = '⚠ Error de señal';
                     
                     switch(error.code) {
@@ -467,10 +397,11 @@
             );
         }
 
+        // 🔥 FUNCIÓN DE REINICIO AUTOMÁTICO (NUEVA)
         function reiniciarGPS() {
             if (!isTracking) return;
             
-            logDebug('🔄 Reiniciando GPS...');
+            console.log('🔄 Reiniciando GPS para recuperar conexión...');
             
             if (watchId !== null) {
                 navigator.geolocation.clearWatch(watchId);
@@ -483,14 +414,12 @@
             }, 300);
         }
 
-        // ==================== ENVÍO A SUPABASE ====================
+        // ==================== ENVÍO A SUPABASE (MISMO QUE ORIGINAL) ====================
         function enviarUbicacion(coords) {
             pendingLocations.push(coords);
             
             if (navigator.onLine) {
                 procesarColaEnvios();
-            } else {
-                logDebug('⚠ Sin conexión, datos en cola', 'warning');
             }
         }
 
@@ -499,22 +428,16 @@
             
             const datos = pendingLocations.shift();
             
-            if (MODO_DEMO || !supabase) {
-                sendCount++;
-                actualizarContador();
-                logDebug('📤 Datos enviados (MODO DEMO)', 'info');
-                return;
-            }
-            
             try {
+                // Estructura original de inserción con columnas de tu tabla 'ubicaciones'
                 const { data, error } = await supabase
                     .from(TABLE_UBICACIONES)
                     .insert({
                         tecnico_id: tecnicoData?.id,
-                        latitude: datos.latitude,
-                        longitude: datos.longitude,
-                        accuracy: datos.accuracy,
-                        timestamp: datos.timestamp,
+                        latitud: datos.latitude,
+                        longitud: datos.longitude,
+                        precision: datos.accuracy,
+                        fecha_hora: datos.timestamp,
                         created_at: new Date().toISOString()
                     });
                 
@@ -522,10 +445,10 @@
                 
                 sendCount++;
                 actualizarContador();
-                logDebug('✅ Datos enviados a Supabase', 'success');
+                console.log('✅ Datos enviados a Supabase');
                 
             } catch (error) {
-                logDebug('❌ Error enviando: ' + error.message, 'error');
+                console.error('❌ Error enviando a Supabase:', error);
                 pendingLocations.unshift(datos);
                 
                 reconnectAttempts++;
@@ -535,7 +458,7 @@
             }
         }
 
-        // ==================== ACTUALIZACIÓN DE UI ====================
+        // ==================== ACTUALIZACIÓN DE UI (ORIGINAL) ====================
         function actualizarUI(clase, texto, color) {
             statusCardEl.className = 'status-card ' + clase;
             statusTextEl.textContent = texto;
@@ -553,7 +476,7 @@
             sendCountEl.textContent = sendCount;
         }
 
-        // ==================== CONEXIÓN ====================
+        // ==================== CONEXIÓN (ORIGINAL) ====================
         function verificarConexion() {
             if (navigator.onLine) {
                 connectionStatusEl.textContent = '📡 Estado: En línea';
@@ -562,7 +485,6 @@
             } else {
                 connectionStatusEl.textContent = '📡 Estado: Sin conexión';
                 connectionStatusEl.style.color = 'orange';
-                logDebug('⚠ Sin conexión a internet', 'warning');
             }
         }
 
@@ -570,7 +492,7 @@
             verificarConexion();
         }
 
-        // ==================== LIMPIEZA ====================
+        // ==================== LIMPIEZA (ORIGINAL) ====================
         window.addEventListener('beforeunload', () => {
             if (watchId !== null) {
                 navigator.geolocation.clearWatch(watchId);
