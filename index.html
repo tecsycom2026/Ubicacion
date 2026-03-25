@@ -369,7 +369,9 @@
 
   <!-- LOGIN -->
   <div id="login-panel">
-    <select id="nombre-select"><option value="">Cargando técnicos...</option></select>
+    <select id="nombre-select">
+      <option value="">Cargando técnicos...</option>
+    </select>
     <p class="error-msg" id="error-msg"></p>
     <button id="start-btn" onclick="startTracking()" disabled>
       ▶ Iniciar seguimiento
@@ -378,7 +380,10 @@
 
   <!-- STATUS -->
   <div id="status-panel">
-    <div class="status-badge"><div class="pulse"></div><span>Ubicación activa</span></div>
+    <div class="status-badge">
+      <div class="pulse"></div>
+      <span>Ubicación activa</span>
+    </div>
     
     <div class="info-grid">
       <div class="info-box">
@@ -400,13 +405,15 @@
     </div>
     
     <div id="wakelock-msg"></div>
-    <button id="stop-btn" onclick="stopTracking()">■ Detener seguimiento</button>
+    <button id="stop-btn" onclick="stopTracking()">
+      ■ Detener seguimiento
+    </button>
   </div>
 
-  <!-- 🔥 BOTÓN NUEVO (AQUÍ VA) -->
+  <!-- 🔥 BOTÓN NUEVO -->
   <div style="margin-top:20px;">
     <button 
-      onclick="window.open('https://tecsycom2026.github.io/ordenes_asignadas/', '_blank', 'noopener,noreferrer')" 
+      onclick="abrirOrdenes()" 
       style="
         width:100%;
         padding:14px;
@@ -424,6 +431,14 @@
 </div>
 
 <script>
+  function abrirOrdenes() {
+    window.open(
+      'https://tecsycom2026.github.io/ordenes_asignadas/',
+      'ordenesWindow',
+      'width=1000,height=700,left=200,top=100,noopener,noreferrer'
+    );
+  }
+</script>
 // ============================================
 // 🔴 CONFIGURACIÓN SUPABASE (ORIGINAL - SIN CAMBIOS)
 // ============================================
