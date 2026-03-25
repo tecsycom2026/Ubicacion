@@ -6,8 +6,6 @@
     <title>PeruFibra – Compartir Ubicación</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        /* ==================== TUS ESTILOS ORIGINALES ==================== */
-        /* Mantén aquí todos tus estilos CSS originales */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
@@ -68,6 +66,8 @@
         .btn-stop { background: #dc3545; color: white; display: none; }
         .btn-stop:hover { background: #c82333; }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-select { background: #667eea; color: white; margin-bottom: 15px; }
+        .btn-select:hover { background: #5a6fd6; }
         .loading { text-align: center; color: #666; padding: 20px; }
         .spinner {
             border: 3px solid #f3f3f3;
@@ -83,6 +83,49 @@
             100% { transform: rotate(360deg); }
         }
         .connection-status { text-align: center; font-size: 12px; color: #999; margin-top: 15px; }
+        
+        /* Selector de técnicos */
+        .tecnico-selector {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .tecnico-selector.show { display: block; }
+        .tecnico-selector label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+        .tecnico-selector select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+        }
+        
+        /* Debug panel */
+        .debug-panel {
+            background: #1a1a2e;
+            color: #00ff88;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 12px;
+            font-family: monospace;
+            max-height: 150px;
+            overflow-y: auto;
+            display: none;
+        }
+        .debug-panel.show { display: block; }
+        .debug-panel p { margin: 5px 0; }
+        .debug-error { color: #ff4444; }
+        .debug-success { color: #00ff88; }
+        .debug-info { color: #88ccff; }
     </style>
 </head>
 <body>
@@ -99,6 +142,15 @@
         </div>
 
         <div id="mainContent" style="display: none;">
+            <!-- Selector de Técnicos -->
+            <div id="tecnicoSelector" class="tecnico-selector">
+                <label for="tecnicoSelect">Seleccionar Técnico:</label>
+                <select id="tecnicoSelect">
+                    <option value="">-- Seleccionar --</option>
+                </select>
+                <button id="btnConfirmTecnico" class="btn btn-select" style="margin-top: 10px;">Confirmar Técnico</button>
+            </div>
+
             <div id="statusCard" class="status-card">
                 <div id="statusText" class="status-text">■ Detenido</div>
                 
@@ -123,38 +175,36 @@
                 </div>
             </div>
 
-            <button id="btnStart" class="btn btn-start">▶ Iniciar seguimiento</button>
+            <button id="btnStart" class="btn btn-start" disabled>▶ Iniciar seguimiento</button>
             <button id="btnStop" class="btn btn-stop">■ Detener seguimiento</button>
 
             <div class="connection-status">
                 <span id="connectionStatus">📡 Estado: Esperando</span>
+            </div>
+
+            <!-- Panel de Debug -->
+            <div id="debugPanel" class="debug-panel">
+                <p class="debug-info">🔍 Panel de Debug</p>
             </div>
         </div>
     </div>
 
     <script>
         // ==================== CONFIGURACIÓN SUPABASE ====================
+        // ⚠️ CONFIGURA ESTO CON TUS DATOS REALES DE SUPABASE
         const SUPABASE_URL = 'https://jxpeztieqwotfgswhzhx.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
+        const TABLE_TECNICOS = 'tecnicos';
+        const TABLE_UBICACIONES = 'ubicaciones';
         
-        const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-
-        // Variables originales (SIN CAMBIOS)
-        let watchId=null, fallbackInterval=null, nombre='', _channel=null, _lista=[], _wakeLock=null, _sendCount=0;
+        // Modo Demo (si Supabase falla, usa datos locales)
+        const MODO_DEMO = true; // Cambiar a false cuando tengas Supabase configurado
         
-        // ✅ Variables NUEVAS para Android Nativo (no interfieren con lo original)
-        let androidAvailable = false;
-        
-        // ============================================
-        // ✅ FUNCIÓN NUEVA: Recibir coordenadas desde Android Nativo
-        // (Se llama desde Kotlin vía webView.loadUrl("javascript:..."))
-        // ============================================
-        function actualizarUbicacion(lat, lng, accuracy) {
-            console.log(`📍 Android Nativo: ${lat}, ${lng} (±${accuracy}m)`);
-            // Reutiliza tu función original saveLocation para mantener compatibilidad con Supabase
-            if (nombre) {
-                saveLocation(lat, lng);
-            }
+        let supabase = null;
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        } catch (e) {
+            logDebug('Error creando cliente Supabase: ' + e.message, 'error');
         }
         
         // ==================== VARIABLES GLOBALES ====================
@@ -162,6 +212,7 @@
         let isTracking = false;
         let sendCount = 0;
         let tecnicoData = null;
+        let tecnicosList = [];
         let pendingLocations = [];
         let reconnectAttempts = 0;
         const MAX_RECONNECT_ATTEMPTS = 5;
@@ -178,93 +229,146 @@
         const btnStart = document.getElementById('btnStart');
         const btnStop = document.getElementById('btnStop');
         const connectionStatusEl = document.getElementById('connectionStatus');
+        const tecnicoSelectorEl = document.getElementById('tecnicoSelector');
+        const tecnicoSelectEl = document.getElementById('tecnicoSelect');
+        const btnConfirmTecnico = document.getElementById('btnConfirmTecnico');
+        const debugPanelEl = document.getElementById('debugPanel');
 
-        // ==================== FUNCIONES ORIGINALES DE SUPABASE ====================
-        // ⚠️ PEGA AQUÍ TU FUNCIÓN sbLoadG ORIGINAL COMPLETA
-        async function sbLoadG(t){
-            const{data,error}=await sb.from(t).select('data').eq('id','global').single();
-            if(error)return null;
-            return data?.data??null;
+        // ==================== DEBUG ====================
+        function logDebug(message, type = 'info') {
+            const p = document.createElement('p');
+            p.className = 'debug-' + type;
+            p.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            debugPanelEl.appendChild(p);
+            debugPanelEl.scrollTop = debugPanelEl.scrollHeight;
+            console.log('[DEBUG]', message);
         }
-        
-        window.addEventListener('load',async()=>{
-            // ✅ Detectar si estamos en APK con AndroidInterface (nuevo, no afecta UI)
-            if (window.AndroidInterface && typeof AndroidInterface.iniciarRastreo === 'function') {
-                androidAvailable = true;
-                console.log('✅ AndroidInterface detectado - GPS nativo disponible');
+
+        // ==================== INICIALIZACIÓN ====================
+        window.addEventListener('load', async () => {
+            logDebug('App iniciada');
+            await sbLoadG();
+            configurarEventos();
+            verificarConexion();
+        });
+
+        // ==================== CARGA DE TÉCNICOS ====================
+        async function sbLoadG() {
+            logDebug('Cargando técnicos...');
+            
+            if (MODO_DEMO || !supabase) {
+                logDebug('Usando modo DEMO (Supabase no configurado)', 'info');
+                await cargarTecnicosDemo();
+                return;
             }
             
-            const fbTL=await sbLoadG('technician_list');
-            const lista=Array.isArray(fbTL)?fbTL.sort():[];
-            _lista=lista;
-        
-            const{data:activos}=await sb.from('user_locations').select('nombre');
-            const ocupados=new Set((activos||[]).map(u=>u.nombre.toUpperCase()));
-        
-            const sel=document.getElementById('nombre-select');
-            sel.innerHTML='<option value="">— Selecciona tu nombre —</option>';
-            lista.forEach(t=>{
-                const o=document.createElement('option');
-                o.value=t;
-                const estaOcupado=ocupados.has(t.toUpperCase());
-                o.textContent=estaOcupado?`${t} (en uso)`:t;
-                o.disabled=estaOcupado;
-                o.style.color=estaOcupado?'#ef4444':'#1f2937';
-                sel.appendChild(o);
-            });
-        
-            sel.addEventListener('change',()=>{
-                document.getElementById('start-btn').disabled=!sel.value;
-                document.getElementById('error-msg').textContent='';
-            });
-        
-            const saved=localStorage.getItem('tracking_nombre');
-            if(saved){
-                const{data}=await sb.from('user_locations').select('nombre').eq('nombre',saved).single();
-                if(data){nombre=saved;showActivePanel(saved);startIntervals();}
-                else localStorage.removeItem('tracking_nombre');
+            try {
+                const { data, error } = await supabase
+                    .from(TABLE_TECNICOS)
+                    .select('*');
+                
+                if (error) {
+                    throw error;
+                }
+                
+                if (data && data.length > 0) {
+                    tecnicosList = data;
+                    logDebug(`✅ ${data.length} técnicos cargados`, 'success');
+                    mostrarSelectorTecnicos();
+                } else {
+                    logDebug('⚠ No hay técnicos en la base de datos', 'error');
+                    await cargarTecnicosDemo();
+                }
+                
+            } catch (error) {
+                logDebug('❌ Error Supabase: ' + error.message, 'error');
+                logDebug('Cambiando a modo DEMO automáticamente', 'info');
+                await cargarTecnicosDemo();
+            } finally {
+                loadingEl.style.display = 'none';
+                mainContentEl.style.display = 'block';
+                debugPanelEl.classList.add('show');
             }
-        
-            _channel=sb.channel('tracking_ocupados')
-                .on('postgres_changes',{event:'*',schema:'public',table:'user_locations'},()=>{
-                    if(document.getElementById('login-panel').style.display!=='none') refreshOcupados(lista);
-                })
-                .subscribe();
+        }
+
+        // ==================== MODO DEMO ====================
+        async function cargarTecnicosDemo() {
+            logDebug('Cargando técnicos de demostración...', 'info');
+            
+            // Datos de ejemplo para pruebas
+            tecnicosList = [
+                { id: 'DEMO-001', nombre: 'Juan Pérez', dni: '12345678' },
+                { id: 'DEMO-002', nombre: 'María García', dni: '87654321' },
+                { id: 'DEMO-003', nombre: 'Carlos López', dni: '11223344' }
+            ];
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            mostrarSelectorTecnicos();
+            logDebug('✅ Modo DEMO activado', 'success');
+        }
+
+        // ==================== SELECTOR DE TÉCNICOS ====================
+        function mostrarSelectorTecnicos() {
+            tecnicoSelectorEl.classList.add('show');
+            tecnicoSelectEl.innerHTML = '<option value="">-- Seleccionar --</option>';
+            
+            tecnicosList.forEach((tecnico, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = tecnico.nombre || `Técnico ${index + 1}`;
+                tecnicoSelectEl.appendChild(option);
+            });
+            
+            logDebug('Selector de técnicos mostrado');
+        }
+
+        btnConfirmTecnico.addEventListener('click', () => {
+            const selectedIndex = tecnicoSelectEl.value;
+            
+            if (selectedIndex === '') {
+                alert('Por favor selecciona un técnico');
+                return;
+            }
+            
+            tecnicoData = tecnicosList[selectedIndex];
+            tecnicoNameEl.textContent = tecnicoData.nombre;
+            tecnicoSelectorEl.classList.remove('show');
+            btnStart.disabled = false;
+            
+            logDebug(`✅ Técnico seleccionado: ${tecnicoData.nombre}`, 'success');
         });
-        // ==================== SISTEMA DE RECONEXIÓN AUTOMÁTICA ====================
-        // 🔥 NUEVO: Detecta cuando la pantalla se enciende y reinicia el GPS
+
+        // ==================== EVENTOS Y RECONEXIÓN ====================
         function configurarEventos() {
             btnStart.addEventListener('click', iniciarSeguimiento);
             btnStop.addEventListener('click', detenerSeguimiento);
             
-            // 🔥 RECONEXIÓN AL VOLVER A PRIMER PLANO
+            // 🔥 RECONEXIÓN AUTOMÁTICA AL VOLVER A PRIMER PLANO
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
-                    console.log('📱 App volvió a primer plano - Verificando GPS...');
+                    logDebug('📱 App volvió a primer plano');
                     actualizarEstadoConexion();
                     
                     if (isTracking) {
                         setTimeout(() => {
                             reiniciarGPS();
+                            logDebug('🔄 GPS reiniciado automáticamente', 'success');
                         }, 500);
                     }
                 }
             });
 
-            // Detectar interacción del usuario
             document.addEventListener('click', () => {
                 if (isTracking) {
                     actualizarEstadoConexion();
                 }
             });
 
-            // Verificar conexión periódicamente
             setInterval(verificarConexion, 10000);
             
-            // Para dispositivos móviles (evento nativo de reanudar)
             document.addEventListener('resume', () => {
                 if (isTracking) {
-                    console.log('🔄 App reanudada - Reiniciando GPS');
+                    logDebug('🔄 App reanudada');
                     reiniciarGPS();
                 }
             });
@@ -272,6 +376,11 @@
 
         // ==================== LÓGICA DE GPS ====================
         function iniciarSeguimiento() {
+            if (!tecnicoData) {
+                alert('Primero selecciona un técnico');
+                return;
+            }
+            
             if (isTracking) return;
             
             isTracking = true;
@@ -286,7 +395,7 @@
             iniciarGPS();
             actualizarEstadoConexion();
             
-            console.log('✅ Seguimiento iniciado');
+            logDebug('✅ Seguimiento iniciado', 'success');
         }
 
         function detenerSeguimiento() {
@@ -302,21 +411,22 @@
             actualizarUI('default', '■ Detenido', '#333');
             btnStart.style.display = 'block';
             btnStop.style.display = 'none';
+            btnStart.disabled = false;
             coordinatesEl.textContent = '—';
             connectionStatusEl.textContent = '📡 Estado: Detenido';
             
-            console.log('⏹ Seguimiento detenido');
+            logDebug('⏹ Seguimiento detenido');
         }
 
         function iniciarGPS() {
             if (!('geolocation' in navigator)) {
                 actualizarUI('error', '⚠ GPS no disponible', 'red');
+                logDebug('❌ GPS no disponible en este dispositivo', 'error');
                 return;
             }
 
-            // 🔥 CONFIGURACIÓN OPTIMIZADA PARA BATERÍA
             const opcionesGPS = {
-                enableHighAccuracy: false, // Usa redes (WiFi/Móvil)
+                enableHighAccuracy: false,
                 timeout: 10000,
                 maximumAge: 30000
             };
@@ -333,9 +443,10 @@
                     actualizarCoordenadas(coords);
                     enviarUbicacion(coords);
                     reconnectAttempts = 0;
+                    logDebug(`📍 Ubicación: ${coords.latitude.toFixed(4)}, ${coords.longitude.toFixed(4)}`, 'success');
                 },
                 (error) => {
-                    console.error('❌ Error GPS:', error.message);
+                    logDebug('❌ Error GPS: ' + error.message, 'error');
                     let mensaje = '⚠ Error de señal';
                     
                     switch(error.code) {
@@ -356,11 +467,10 @@
             );
         }
 
-        // 🔥 FUNCIÓN CLAVE: REINICIO AUTOMÁTICO DEL GPS
         function reiniciarGPS() {
             if (!isTracking) return;
             
-            console.log('🔄 Reiniciando GPS para recuperar conexión...');
+            logDebug('🔄 Reiniciando GPS...');
             
             if (watchId !== null) {
                 navigator.geolocation.clearWatch(watchId);
@@ -379,6 +489,8 @@
             
             if (navigator.onLine) {
                 procesarColaEnvios();
+            } else {
+                logDebug('⚠ Sin conexión, datos en cola', 'warning');
             }
         }
 
@@ -387,10 +499,16 @@
             
             const datos = pendingLocations.shift();
             
+            if (MODO_DEMO || !supabase) {
+                sendCount++;
+                actualizarContador();
+                logDebug('📤 Datos enviados (MODO DEMO)', 'info');
+                return;
+            }
+            
             try {
-                // ⚠️ VERIFICA QUE ESTA ESTRUCTURA COINCIDA CON TU TABLA ORIGINAL
                 const { data, error } = await supabase
-                    .from('ubicaciones')
+                    .from(TABLE_UBICACIONES)
                     .insert({
                         tecnico_id: tecnicoData?.id,
                         latitude: datos.latitude,
@@ -404,10 +522,10 @@
                 
                 sendCount++;
                 actualizarContador();
-                console.log('✅ Datos enviados a Supabase');
+                logDebug('✅ Datos enviados a Supabase', 'success');
                 
             } catch (error) {
-                console.error('❌ Error enviando a Supabase:', error);
+                logDebug('❌ Error enviando: ' + error.message, 'error');
                 pendingLocations.unshift(datos);
                 
                 reconnectAttempts++;
@@ -444,6 +562,7 @@
             } else {
                 connectionStatusEl.textContent = '📡 Estado: Sin conexión';
                 connectionStatusEl.style.color = 'orange';
+                logDebug('⚠ Sin conexión a internet', 'warning');
             }
         }
 
