@@ -6,6 +6,8 @@
     <title>PeruFibra – Compartir Ubicación</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        /* ==================== TUS ESTILOS ORIGINALES ==================== */
+        /* Mantén aquí todos tus estilos CSS originales */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
@@ -132,27 +134,16 @@
 
     <script>
         // ==================== CONFIGURACIÓN SUPABASE ====================
-        // ⚠️ VERIFICA QUE ESTAS CREDENCIALES SEAN LAS DE TU PROYECTO
-        const SUPABASE_URL = 'https://jxpeztieqwotfgswhzhx.supabase.co'; 
+        const SUPABASE_URL = 'https://jxpeztieqwotfgswhzhx.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
         
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        // Variables originales (SIN CAMBIOS)
-        let watchId=null, fallbackInterval=null, nombre='', _channel=null, _lista=[], _wakeLock=null, _sendCount=0;
-        
-        // ✅ Variables NUEVAS para Android Nativo (no interfieren con lo original)
-        let androidAvailable = false;
-        
-        // ==================== CONFIGURACIÓN GENERAL ====================
-        const SEND_INTERVAL = 30000; // 30 segundos
-        const TABLE_NAME = 'ubicaciones'; // Tu tabla en Supabase
         
         // ==================== VARIABLES GLOBALES ====================
         let watchId = null;
         let isTracking = false;
         let sendCount = 0;
         let tecnicoData = null;
-        let connectionInterval = null;
         let pendingLocations = [];
         let reconnectAttempts = 0;
         const MAX_RECONNECT_ATTEMPTS = 5;
@@ -170,17 +161,11 @@
         const btnStop = document.getElementById('btnStop');
         const connectionStatusEl = document.getElementById('connectionStatus');
 
-        // ==================== INICIALIZACIÓN ====================
-        document.addEventListener('DOMContentLoaded', () => {
-            cargarTecnico();
-            configurarEventos();
-            verificarConexion();
-        });
-
-        // ==================== CARGA DE DATOS (SUPABASE) ====================
-        async function cargarTecnico() {
+        // ==================== FUNCIONES ORIGINALES DE SUPABASE ====================
+        // ⚠️ PEGA AQUÍ TU FUNCIÓN sbLoadG ORIGINAL COMPLETA
+        async function sbLoadG() {
             try {
-                // Lógica original de carga de técnicos
+                // Tu lógica original de carga de técnicos desde Supabase
                 const { data, error } = await supabase
                     .from('tecnicos')
                     .select('*')
@@ -201,19 +186,31 @@
             }
         }
 
-        // ==================== EVENTOS Y RECONEXIÓN ====================
+        // ⚠️ PEGA AQUÍ OTRAS FUNCIONES ORIGINALES QUE TENGAS
+        // (sbStartTracking, sbStopTracking, etc.)
+
+        // ==================== EVENTO DE CARGA ORIGINAL ====================
+        // ⚠️ MANTIENE TU window.addEventListener('load') ORIGINAL
+        window.addEventListener('load', async () => {
+            // Tu código original de inicialización
+            await sbLoadG();
+            configurarEventos();
+            verificarConexion();
+            console.log('✅ App cargada completamente');
+        });
+
+        // ==================== SISTEMA DE RECONEXIÓN AUTOMÁTICA ====================
+        // 🔥 NUEVO: Detecta cuando la pantalla se enciende y reinicia el GPS
         function configurarEventos() {
             btnStart.addEventListener('click', iniciarSeguimiento);
             btnStop.addEventListener('click', detenerSeguimiento);
             
-            // 🔥 NUEVA FUNCIÓN: RECONEXIÓN AUTOMÁTICA
-            // Detecta cuando la pantalla se enciende o la app vuelve a primer plano
+            // 🔥 RECONEXIÓN AL VOLVER A PRIMER PLANO
             document.addEventListener('visibilitychange', () => {
                 if (document.visibilityState === 'visible') {
                     console.log('📱 App volvió a primer plano - Verificando GPS...');
                     actualizarEstadoConexion();
                     
-                    // Si está en seguimiento, forzamos un reinicio suave del GPS
                     if (isTracking) {
                         setTimeout(() => {
                             reiniciarGPS();
@@ -222,7 +219,7 @@
                 }
             });
 
-            // Detectar interacción del usuario (ayuda a despertar el proceso)
+            // Detectar interacción del usuario
             document.addEventListener('click', () => {
                 if (isTracking) {
                     actualizarEstadoConexion();
@@ -270,11 +267,6 @@
                 watchId = null;
             }
             
-            if (connectionInterval !== null) {
-                clearInterval(connectionInterval);
-                connectionInterval = null;
-            }
-            
             actualizarUI('default', '■ Detenido', '#333');
             btnStart.style.display = 'block';
             btnStop.style.display = 'none';
@@ -292,9 +284,9 @@
 
             // 🔥 CONFIGURACIÓN OPTIMIZADA PARA BATERÍA
             const opcionesGPS = {
-                enableHighAccuracy: false, // Usa redes (WiFi/Móvil) en vez de satélite puro
+                enableHighAccuracy: false, // Usa redes (WiFi/Móvil)
                 timeout: 10000,
-                maximumAge: 30000 // Acepta ubicación de hace 30 seg para no gastar batería buscando señal nueva
+                maximumAge: 30000
             };
 
             watchId = navigator.geolocation.watchPosition(
@@ -308,7 +300,7 @@
                     
                     actualizarCoordenadas(coords);
                     enviarUbicacion(coords);
-                    reconnectAttempts = 0; // Resetear intentos de reconexión al recibir datos
+                    reconnectAttempts = 0;
                 },
                 (error) => {
                     console.error('❌ Error GPS:', error.message);
@@ -333,7 +325,6 @@
         }
 
         // 🔥 FUNCIÓN CLAVE: REINICIO AUTOMÁTICO DEL GPS
-        // Esta función mata y revive el GPS para recuperar la señal tras bloqueo de pantalla
         function reiniciarGPS() {
             if (!isTracking) return;
             
@@ -365,9 +356,9 @@
             const datos = pendingLocations.shift();
             
             try {
-                // Estructura de inserción original en Supabase
+                // ⚠️ VERIFICA QUE ESTA ESTRUCTURA COINCIDA CON TU TABLA ORIGINAL
                 const { data, error } = await supabase
-                    .from(TABLE_NAME)
+                    .from('ubicaciones')
                     .insert({
                         tecnico_id: tecnicoData?.id,
                         latitude: datos.latitude,
@@ -385,7 +376,7 @@
                 
             } catch (error) {
                 console.error('❌ Error enviando a Supabase:', error);
-                pendingLocations.unshift(datos); // Volver a poner en cola
+                pendingLocations.unshift(datos);
                 
                 reconnectAttempts++;
                 if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
