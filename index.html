@@ -137,6 +137,11 @@
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
         
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Variables originales (SIN CAMBIOS)
+        let watchId=null, fallbackInterval=null, nombre='', _channel=null, _lista=[], _wakeLock=null, _sendCount=0;
+        
+        // ✅ Variables NUEVAS para Android Nativo (no interfieren con lo original)
+        let androidAvailable = false;
         
         // ==================== CONFIGURACIÓN GENERAL ====================
         const SEND_INTERVAL = 30000; // 30 segundos
