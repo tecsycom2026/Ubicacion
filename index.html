@@ -403,10 +403,10 @@
     <button id="stop-btn" onclick="stopTracking()">■ Detener seguimiento</button>
   </div>
 
-  <!-- 🔥 BOTÓN NUEVO (AQUÍ VA) -->
+  <!-- 🔥 BOTÓN NUEVO -->
   <div style="margin-top:20px;">
     <button 
-      onclick="window.open('https://tecsycom2026.github.io/ordenes_asignadas/', '_blank', 'noopener,noreferrer')" 
+      onclick="abrirOrdenes()" 
       style="
         width:100%;
         padding:14px;
@@ -430,7 +430,13 @@
 const SUPABASE_URL='https://jxpeztieqwotfgswhzhx.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-
+function abrirOrdenes() {
+  window.open(
+    'https://tecsycom2026.github.io/ordenes_asignadas/',
+    'ordenesWindow',
+    'width=1000,height=700,left=200,top=100,noopener,noreferrer'
+  );
+}
 // Variables originales (SIN CAMBIOS)
 let watchId=null, fallbackInterval=null, nombre='', _channel=null, _lista=[], _wakeLock=null, _sendCount=0;
 
