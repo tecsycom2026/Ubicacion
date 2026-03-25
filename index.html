@@ -367,14 +367,16 @@
   <h2>Compartir Ubicación</h2>
   <p class="subtitle">PeruFibra – Seguimiento en tiempo real</p>
 
-  <!-- ✅ PANEL LOGIN (MISMOS IDs - LÓGICA ORIGINAL 100%) -->
+  <!-- LOGIN -->
   <div id="login-panel">
     <select id="nombre-select"><option value="">Cargando técnicos...</option></select>
     <p class="error-msg" id="error-msg"></p>
-    <button id="start-btn" onclick="startTracking()" disabled>▶ Iniciar seguimiento</button>
+    <button id="start-btn" onclick="startTracking()" disabled>
+      ▶ Iniciar seguimiento
+    </button>
   </div>
 
-  <!-- ✅ PANEL ESTADO (MISMOS IDs - LÓGICA ORIGINAL 100%) -->
+  <!-- STATUS -->
   <div id="status-panel">
     <div class="status-badge"><div class="pulse"></div><span>Ubicación activa</span></div>
     
@@ -400,25 +402,27 @@
     <div id="wakelock-msg"></div>
     <button id="stop-btn" onclick="stopTracking()">■ Detener seguimiento</button>
   </div>
+
+  <!-- 🔥 BOTÓN NUEVO (AQUÍ VA) -->
+  <div style="margin-top:20px;">
+    <button 
+      onclick="window.open('https://tecsycom2026.github.io/ordenes_asignadas/', '_blank', 'noopener,noreferrer')" 
+      style="
+        width:100%;
+        padding:14px;
+        border:none;
+        border-radius:12px;
+        background:linear-gradient(135deg,#2563eb,#1d4ed8);
+        color:white;
+        font-weight:600;
+        cursor:pointer;
+      ">
+      📋 Ver Órdenes Asignadas
+    </button>
+  </div>
+
 </div>
 
-<!-- 🔥 BOTÓN NUEVO (SIEMPRE VISIBLE) -->
-<div style="margin-top:20px;">
-  <button 
-    onclick="window.open('https://tecsycom2026.github.io/ordenes_asignadas/', '_blank', 'noopener,noreferrer')" 
-    style="
-      width:100%;
-      padding:14px;
-      border:none;
-      border-radius:12px;
-      background:linear-gradient(135deg,#2563eb,#1d4ed8);
-      color:white;
-      font-weight:600;
-      cursor:pointer;
-    ">
-    📋 Ver Órdenes Asignadas
-  </button>
-</div>  
 <script>
 // ============================================
 // 🔴 CONFIGURACIÓN SUPABASE (ORIGINAL - SIN CAMBIOS)
