@@ -430,12 +430,13 @@
 const SUPABASE_URL='https://jxpeztieqwotfgswhzhx.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+// ── NUEVO: Modal para mostrar órdenes sin perder la página principal ──
 function abrirOrdenes() {
-  window.open(
-    'https://tecsycom2026.github.io/ordenes_asignadas/',
-    '_blank',  // Abre siempre una nueva pestaña
-    'width=1000,height=700,noopener,noreferrer'
-  );
+  document.getElementById('ordenes-modal').style.display = 'block';
+}
+
+function cerrarModal() {
+  document.getElementById('ordenes-modal').style.display = 'none';
 }
 // Variables originales (SIN CAMBIOS)
 let watchId=null, fallbackInterval=null, nombre='', _channel=null, _lista=[], _wakeLock=null, _sendCount=0;
@@ -794,5 +795,36 @@ async function installApp(){
     }
 }
 </script>
+<!-- MODAL PARA VER ÓRDENES ASIGNADAS -->
+<div id="ordenes-modal" style="
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.5);
+    z-index:9999;
+    backdrop-filter: blur(4px);
+">
+  <iframe src="https://tecsycom2026.github.io/ordenes_asignadas/" 
+          style="width:100%; height:100%; border:none; border-radius:12px;"></iframe>
+  <button onclick="cerrarModal()" 
+          style="
+            position:absolute;
+            top:10px;
+            right:10px;
+            padding:10px 14px;
+            border:none;
+            border-radius:8px;
+            background:#ef4444;
+            color:#fff;
+            font-weight:600;
+            cursor:pointer;
+            font-size:0.9rem;
+          ">
+    Cerrar ✖
+  </button>
+</div>  
 </body>
 </html>
