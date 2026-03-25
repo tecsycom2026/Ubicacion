@@ -163,42 +163,56 @@
 
         // ==================== FUNCIONES ORIGINALES DE SUPABASE ====================
         // ⚠️ PEGA AQUÍ TU FUNCIÓN sbLoadG ORIGINAL COMPLETA
-        async function sbLoadG() {
-            try {
-                // Tu lógica original de carga de técnicos desde Supabase
-                const { data, error } = await supabase
-                    .from('tecnicos')
-                    .select('*')
-                    .limit(1)
-                    .single();
-                
-                if (error) throw error;
-                
-                tecnicoData = data;
-                tecnicoNameEl.textContent = tecnicoData.nombre || 'Técnico Asignado';
-                
-            } catch (error) {
-                console.error('Error cargando técnico:', error);
-                tecnicoNameEl.textContent = 'Técnico Local';
-            } finally {
-                loadingEl.style.display = 'none';
-                mainContentEl.style.display = 'block';
-            }
+        async function sbLoadG(t){
+            const{data,error}=await sb.from(t).select('data').eq('id','global').single();
+            if(error)return null;
+            return data?.data??null;
         }
-
-        // ⚠️ PEGA AQUÍ OTRAS FUNCIONES ORIGINALES QUE TENGAS
-        // (sbStartTracking, sbStopTracking, etc.)
-
-        // ==================== EVENTO DE CARGA ORIGINAL ====================
-        // ⚠️ MANTIENE TU window.addEventListener('load') ORIGINAL
-        window.addEventListener('load', async () => {
-            // Tu código original de inicialización
-            await sbLoadG();
-            configurarEventos();
-            verificarConexion();
-            console.log('✅ App cargada completamente');
+        
+        window.addEventListener('load',async()=>{
+            // ✅ Detectar si estamos en APK con AndroidInterface (nuevo, no afecta UI)
+            if (window.AndroidInterface && typeof AndroidInterface.iniciarRastreo === 'function') {
+                androidAvailable = true;
+                console.log('✅ AndroidInterface detectado - GPS nativo disponible');
+            }
+            
+            const fbTL=await sbLoadG('technician_list');
+            const lista=Array.isArray(fbTL)?fbTL.sort():[];
+            _lista=lista;
+        
+            const{data:activos}=await sb.from('user_locations').select('nombre');
+            const ocupados=new Set((activos||[]).map(u=>u.nombre.toUpperCase()));
+        
+            const sel=document.getElementById('nombre-select');
+            sel.innerHTML='<option value="">— Selecciona tu nombre —</option>';
+            lista.forEach(t=>{
+                const o=document.createElement('option');
+                o.value=t;
+                const estaOcupado=ocupados.has(t.toUpperCase());
+                o.textContent=estaOcupado?`${t} (en uso)`:t;
+                o.disabled=estaOcupado;
+                o.style.color=estaOcupado?'#ef4444':'#1f2937';
+                sel.appendChild(o);
+            });
+        
+            sel.addEventListener('change',()=>{
+                document.getElementById('start-btn').disabled=!sel.value;
+                document.getElementById('error-msg').textContent='';
+            });
+        
+            const saved=localStorage.getItem('tracking_nombre');
+            if(saved){
+                const{data}=await sb.from('user_locations').select('nombre').eq('nombre',saved).single();
+                if(data){nombre=saved;showActivePanel(saved);startIntervals();}
+                else localStorage.removeItem('tracking_nombre');
+            }
+        
+            _channel=sb.channel('tracking_ocupados')
+                .on('postgres_changes',{event:'*',schema:'public',table:'user_locations'},()=>{
+                    if(document.getElementById('login-panel').style.display!=='none') refreshOcupados(lista);
+                })
+                .subscribe();
         });
-
         // ==================== SISTEMA DE RECONEXIÓN AUTOMÁTICA ====================
         // 🔥 NUEVO: Detecta cuando la pantalla se enciende y reinicia el GPS
         function configurarEventos() {
