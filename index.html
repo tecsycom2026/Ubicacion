@@ -757,6 +757,29 @@ async function stopTracking(){
     await refreshOcupados(_lista);
 }
 
+// ── Auto-desconexión a las 11:00 PM ──────────────────────────────────────────
+const AUTO_STOP_HOUR = 23; // 23 = 11:00 PM en formato 24h
+
+function checkAutoStop() {
+    if (!nombre) return; // No hay sesión activa, nada que hacer
+    const ahora = new Date();
+    if (ahora.getHours() >= AUTO_STOP_HOUR) {
+        console.warn('⏰ Auto-desconexión activada: son las ' + ahora.toLocaleTimeString('es-PE'));
+        // Mostrar aviso breve antes de desconectar
+        const aviso = document.createElement('div');
+        aviso.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ef4444;color:white;text-align:center;padding:14px;font-weight:600;font-size:1rem;z-index:99999;';
+        aviso.textContent = '⏰ Auto-desconexión a las 11 PM — Seguimiento detenido automáticamente';
+        document.body.appendChild(aviso);
+        setTimeout(() => aviso.remove(), 6000);
+        stopTracking();
+    }
+}
+
+// Revisar cada 60 segundos
+setInterval(checkAutoStop, 60000);
+// También revisar al cargar (por si la página se abre pasadas las 11 PM)
+window.addEventListener('load', () => setTimeout(checkAutoStop, 3000));
+
 // ── Service Worker (PWA background GPS) ───────────────────────────────────────
 if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').then(reg=>{
