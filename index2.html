@@ -367,14 +367,16 @@
   <h2>Compartir Ubicación</h2>
   <p class="subtitle">PeruFibra – Seguimiento en tiempo real</p>
 
-  <!-- ✅ PANEL LOGIN (MISMOS IDs - LÓGICA ORIGINAL 100%) -->
+  <!-- LOGIN -->
   <div id="login-panel">
     <select id="nombre-select"><option value="">Cargando técnicos...</option></select>
     <p class="error-msg" id="error-msg"></p>
-    <button id="start-btn" onclick="startTracking()" disabled>▶ Iniciar seguimiento</button>
+    <button id="start-btn" onclick="startTracking()" disabled>
+      ▶ Iniciar seguimiento
+    </button>
   </div>
 
-  <!-- ✅ PANEL ESTADO (MISMOS IDs - LÓGICA ORIGINAL 100%) -->
+  <!-- STATUS -->
   <div id="status-panel">
     <div class="status-badge"><div class="pulse"></div><span>Ubicación activa</span></div>
     
@@ -400,6 +402,25 @@
     <div id="wakelock-msg"></div>
     <button id="stop-btn" onclick="stopTracking()">■ Detener seguimiento</button>
   </div>
+
+  <!-- 🔥 BOTÓN NUEVO -->
+  <div style="margin-top:20px;">
+    <button 
+      onclick="abrirOrdenes()" 
+      style="
+        width:100%;
+        padding:14px;
+        border:none;
+        border-radius:12px;
+        background:linear-gradient(135deg,#2563eb,#1d4ed8);
+        color:white;
+        font-weight:600;
+        cursor:pointer;
+      ">
+      📋 Ver Órdenes Asignadas
+    </button>
+  </div>
+
 </div>
 
 <script>
@@ -409,12 +430,25 @@
 const SUPABASE_URL='https://jxpeztieqwotfgswhzhx.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
 const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+// ── NUEVO: Modal para mostrar órdenes sin perder la página principal ──
+function abrirOrdenes() {
+  document.getElementById('ordenes-modal').style.display = 'block';
+}
 
+function cerrarModal() {
+  document.getElementById('ordenes-modal').style.display = 'none';
+}
 // Variables originales (SIN CAMBIOS)
 let watchId=null, fallbackInterval=null, nombre='', _channel=null, _lista=[], _wakeLock=null, _sendCount=0;
 
 // ✅ Variables NUEVAS para Android Nativo (no interfieren con lo original)
 let androidAvailable = false;
+
+// ✅ Variables NUEVAS: Cola offline + Heartbeat GPS (no interfieren con lo original)
+let pendingLocations = [];          // Cola de envíos offline
+let _heartbeatInterval = null;      // Intervalo de latido para detectar GPS dormido
+let _lastGpsTimestamp = null;       // Última vez que se recibió una coordenada
+const GPS_STALE_THRESHOLD = 45000;  // 45 seg sin señal = GPS dormido, reiniciar
 
 // ============================================
 // ✅ FUNCIÓN NUEVA: Recibir coordenadas desde Android Nativo
@@ -571,10 +605,11 @@ async function startTracking(){
 
 function startIntervals(){
     if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+    // ✅ MODIFICADO: enableHighAccuracy:false para ahorrar batería (mantiene toda la lógica original)
     watchId=navigator.geolocation.watchPosition(
         pos=>saveLocation(pos.coords.latitude,pos.coords.longitude),
         err=>console.warn('watch error:',err),
-        {enableHighAccuracy:true,timeout:10000,maximumAge:0}
+        {enableHighAccuracy:false,timeout:15000,maximumAge:30000}
     );
 
     if(fallbackInterval) clearInterval(fallbackInterval);
@@ -583,21 +618,57 @@ function startIntervals(){
         navigator.geolocation.getCurrentPosition(
             pos=>saveLocation(pos.coords.latitude,pos.coords.longitude),
             err=>console.warn('fallback error:',err),
-            {enableHighAccuracy:true,timeout:8000,maximumAge:0}
+            {enableHighAccuracy:false,timeout:10000,maximumAge:30000}
         );
     },5000);
+
+    // ✅ NUEVO: Latido — detecta si el GPS se "durmio" y lo reinicia
+    _lastGpsTimestamp = Date.now();
+    if(_heartbeatInterval) clearInterval(_heartbeatInterval);
+    _heartbeatInterval = setInterval(()=>{
+        if(!nombre) return;
+        const ahora = Date.now();
+        const sinSenal = ahora - (_lastGpsTimestamp || ahora);
+        if(sinSenal > GPS_STALE_THRESHOLD){
+            console.warn('GPS dormido ('+Math.round(sinSenal/1000)+'s sin senal) - reiniciando...');
+            startIntervals(); // reinicio completo de watchPosition y fallback
+        }
+    }, 20000); // checar cada 20 seg
 }
 
 async function saveLocation(lat,lng){
     if(!nombre) return;
+    // ✅ NUEVO: Actualizar timestamp del latido cada vez que llega una coordenada
+    _lastGpsTimestamp = Date.now();
+
     const id=nombre.replace(/\s+/g,'_').toLowerCase();
     const ts=new Date().toISOString();
+
+    // ✅ NUEVO: Si no hay internet, guardar en cola pendiente
+    if(!navigator.onLine){
+        pendingLocations.push({id,nombre,lat,lng,updated_at:ts});
+        console.warn('Sin internet - guardado en cola ('+pendingLocations.length+' pendientes)');
+        document.getElementById('display-coords').textContent=lat.toFixed(6)+', '+lng.toFixed(6);
+        document.getElementById('last-update').textContent=new Date().toLocaleTimeString('es-PE')+' pendiente';
+        return;
+    }
+
+    // ✅ NUEVO: Enviar cola pendiente si hay conexion
+    if(pendingLocations.length > 0){
+        const cola = [...pendingLocations];
+        pendingLocations = [];
+        for(const entry of cola){
+            await sb.from('user_locations').upsert(entry).catch(e=>console.warn('Reenvio fallido:',e.message));
+        }
+        console.log('Cola enviada: '+cola.length+' ubicaciones pendientes');
+    }
+
     const{error}=await sb.from('user_locations').upsert({id,nombre,lat,lng,updated_at:ts});
     if(error){console.error('Error guardando:',error.message);return;}
     _sendCount++;
-    document.getElementById('display-coords').textContent=`${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-    document.getElementById('last-update').textContent=`${new Date().toLocaleTimeString('es-PE')}`;
-    document.getElementById('send-count').textContent=`${_sendCount}`;
+    document.getElementById('display-coords').textContent=lat.toFixed(6)+', '+lng.toFixed(6);
+    document.getElementById('last-update').textContent=new Date().toLocaleTimeString('es-PE');
+    document.getElementById('send-count').textContent=''+_sendCount;
 }
 
 function showActivePanel(n){
@@ -614,15 +685,29 @@ async function activateWakeLock(){
     if('wakeLock' in navigator){
         try{
             _wakeLock=await navigator.wakeLock.request('screen');
-            if(msg) msg.textContent='🔒 Pantalla activa (GPS continuo)';
+            if(msg) msg.textContent='Pantalla activa (GPS continuo)';
             document.addEventListener('visibilitychange',async()=>{
                 if(_wakeLock!==null&&document.visibilityState==='visible'){
                     try{_wakeLock=await navigator.wakeLock.request('screen');}catch(e){}
                 }
+                // ✅ NUEVO: Al volver a la app, reiniciar GPS si estaba activo (reconexion inteligente)
+                if(document.visibilityState==='visible' && nombre && !androidAvailable){
+                    console.log('Pantalla encendida - reiniciando GPS...');
+                    _lastGpsTimestamp = null; // forzar reinicio inmediato
+                    startIntervals();
+                }
             });
-        }catch(e){if(msg) msg.textContent='⚠ Mantén la pantalla encendida';}
+        }catch(e){if(msg) msg.textContent='Manten la pantalla encendida';}
     } else {
-        if(msg) msg.textContent='⚠ Mantén la pantalla encendida';
+        if(msg) msg.textContent='Manten la pantalla encendida';
+        // ✅ NUEVO: Sin wakeLock, igual escuchar visibilitychange para reconectar GPS
+        document.addEventListener('visibilitychange',()=>{
+            if(document.visibilityState==='visible' && nombre && !androidAvailable){
+                console.log('Pantalla encendida (sin wakeLock) - reiniciando GPS...');
+                _lastGpsTimestamp = null;
+                startIntervals();
+            }
+        });
     }
 }
 
@@ -641,6 +726,9 @@ async function stopTracking(){
         watchId=null;
     }
     if(fallbackInterval){clearInterval(fallbackInterval);fallbackInterval=null;}
+    // ✅ NUEVO: Limpiar heartbeat y cola pendiente al detener
+    if(_heartbeatInterval){clearInterval(_heartbeatInterval);_heartbeatInterval=null;}
+    pendingLocations=[];
     if(_wakeLock){try{await _wakeLock.release();}catch(e){}_wakeLock=null;}
 
     if(nombre){
@@ -668,6 +756,29 @@ async function stopTracking(){
 
     await refreshOcupados(_lista);
 }
+
+// ── Auto-desconexión a las 11:00 PM ──────────────────────────────────────────
+const AUTO_STOP_HOUR = 23; // 23 = 11:00 PM en formato 24h
+
+function checkAutoStop() {
+    if (!nombre) return; // No hay sesión activa, nada que hacer
+    const ahora = new Date();
+    if (ahora.getHours() >= AUTO_STOP_HOUR) {
+        console.warn('⏰ Auto-desconexión activada: son las ' + ahora.toLocaleTimeString('es-PE'));
+        // Mostrar aviso breve antes de desconectar
+        const aviso = document.createElement('div');
+        aviso.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#ef4444;color:white;text-align:center;padding:14px;font-weight:600;font-size:1rem;z-index:99999;';
+        aviso.textContent = '⏰ Auto-desconexión a las 11 PM — Seguimiento detenido automáticamente';
+        document.body.appendChild(aviso);
+        setTimeout(() => aviso.remove(), 6000);
+        stopTracking();
+    }
+}
+
+// Revisar cada 60 segundos
+setInterval(checkAutoStop, 60000);
+// También revisar al cargar (por si la página se abre pasadas las 11 PM)
+window.addEventListener('load', () => setTimeout(checkAutoStop, 3000));
 
 // ── Service Worker (PWA background GPS) ───────────────────────────────────────
 if('serviceWorker' in navigator){
@@ -707,5 +818,36 @@ async function installApp(){
     }
 }
 </script>
+<!-- MODAL PARA VER ÓRDENES ASIGNADAS -->
+<div id="ordenes-modal" style="
+    display:none;
+    position:fixed;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.5);
+    z-index:9999;
+    backdrop-filter: blur(4px);
+">
+  <iframe src="https://tecsycom2026.github.io/ordenes_asignadas/" 
+          style="width:100%; height:100%; border:none; border-radius:12px;"></iframe>
+  <button onclick="cerrarModal()" 
+          style="
+            position:absolute;
+            top:10px;
+            right:10px;
+            padding:10px 14px;
+            border:none;
+            border-radius:8px;
+            background:#ef4444;
+            color:#fff;
+            font-weight:600;
+            cursor:pointer;
+            font-size:0.9rem;
+          ">
+    Cerrar ✖
+  </button>
+</div>
 </body>
 </html>
