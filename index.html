@@ -35,12 +35,12 @@
     #status { margin-top: 20px; padding: 12px; border-radius: 12px; font-size: 0.875rem; display: none; text-align: center; }
     .status-active { display: block !important; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
     .status-error { display: block !important; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
-    
-    /* --- NUEVOS ESTILOS SELECTOR DE MAPA --- */
-    .map-style-container { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
-    .map-select { width: 100%; padding: 10px; border-radius: 10px; border: 2px solid #e2e8f0; font-size: 0.9rem; background: white; }
-    
     #map { height: 200px; border-radius: 16px; margin-top: 20px; background: #e5e7eb; border: 1px solid #e2e8f0; }
+    
+    /* Estilo del Selector de Mapa */
+    .map-style-group { margin-top: 15px; }
+    .map-select { width: 100%; padding: 10px; border-radius: 10px; border: 2px solid #e2e8f0; font-size: 0.9rem; background: white; color: #1e293b; font-weight: 500; }
+
     .footer-info { margin-top: 20px; font-size: 0.75rem; color: #94a3b8; text-align: center; line-height: 1.5; }
     .btn-ordenes { margin-top: 10px; width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--primary); background: white; color: var(--primary); font-weight: 600; cursor: pointer; }
   </style>
@@ -67,8 +67,8 @@
 
     <div id="map"></div>
 
-    <div class="map-style-container">
-      <label>Estilo del Mapa</label>
+    <div class="map-style-group">
+      <label for="map-style-select">Estilo del Mapa</label>
       <select id="map-style-select" class="map-select">
         <option value="carto">CartoDB Positron (Claro)</option>
         <option value="google">Google Maps (Estándar)</option>
@@ -85,7 +85,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // --- CONFIGURACIÓN SUPABASE (ORIGINAL) ---
+    // Configuración Supabase
     const SUPABASE_URL = 'https://jxpeztieqwotfgswhzhx.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
     const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -103,29 +103,29 @@
       nameInput.value = localStorage.getItem('gps_user_name');
     }
 
-    // --- CAPAS DE MAPA ---
+    // --- LÓGICA DE CAPAS DE MAPA ---
     const layers = {
       carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'),
       google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}')
     };
     let currentLayer = layers.carto;
 
-    // --- INICIALIZACIÓN DE MAPA ---
+    // Inicializar mapa (centrado en Lima por defecto)
     map = L.map('map', { zoomControl: false }).setView([-12.0464, -77.0428], 15);
     currentLayer.addTo(map);
 
-    // Lógica para cambiar estilo sin recargar
+    // Cambio de estilo en tiempo real
     styleSelect.addEventListener('change', (e) => {
       map.removeLayer(currentLayer);
       currentLayer = layers[e.target.value];
       currentLayer.addTo(map);
     });
 
-    // --- LÓGICA DE COMPARTIR (ORIGINAL) ---
+    // Lógica para Compartir
     btnShare.addEventListener('click', () => {
       if (!isSharing) {
         const name = nameInput.value.trim();
-        if (!name) return alert('Ingresa tu nombre');
+        if (!name) return alert('Por favor, ingresa tu nombre');
         localStorage.setItem('gps_user_name', name);
         startTracking();
       } else {
@@ -161,7 +161,7 @@
 
       statusDiv.innerText = `Transmitiendo: ${new Date().toLocaleTimeString()}`;
 
-      // ENVÍO A SUPABASE (LÓGICA ORIGINAL)
+      // Upsert a Supabase
       await sb.from('user_locations').upsert({
         id: userId,
         nombre: name,
@@ -185,7 +185,7 @@
       statusDiv.innerText = `Error GPS: ${err.message}`;
     }
 
-    // INTERVALO DE SEGURIDAD 30S (ORIGINAL)
+    // Intervalo de seguridad (30s)
     setInterval(async () => {
       if (isSharing && marker) {
         const pos = marker.getLatLng();
@@ -199,7 +199,7 @@
       }
     }, 30000);
 
-    // --- LÓGICA DE ÓRDENES ASIGNADAS (ORIGINAL) ---
+    // Función para órdenes
     function verOrdenes() {
       document.getElementById('ordenes-modal').style.display = 'block';
     }
@@ -207,16 +207,16 @@
       document.getElementById('ordenes-modal').style.display = 'none';
     }
 
-    // --- LÓGICA PWA / INSTALACIÓN (ORIGINAL) ---
+    // PWA - Instalación
     let _installPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {
         e.preventDefault();
         _installPrompt = e;
         const banner = document.createElement('div');
         banner.id = 'install-banner';
-        banner.style = "background:var(--primary);color:white;padding:12px;border-radius:12px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;";
-        banner.innerHTML = `<span><span style="font-size:1.2rem;">📲</span> Instala la app</span><button onclick="installApp()" style="padding:6px 12px;border-radius:8px;border:none;background:white;color:var(--primary);font-weight:600;cursor:pointer;">Instalar</button>`;
-        document.querySelector('.card').prepend(banner);
+        banner.style = "background:#2563eb;color:white;padding:12px;border-radius:12px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;font-size:0.9rem;";
+        banner.innerHTML = `<span>📲 Instalar App Tracking</span><button onclick="installApp()" style="padding:6px 12px;border-radius:8px;border:none;background:white;color:#2563eb;font-weight:600;cursor:pointer;">Instalar</button>`;
+        document.querySelector('.card').insertBefore(banner, document.querySelector('.card').firstChild);
     });
 
     async function installApp(){
@@ -231,7 +231,7 @@
   </script>
 
   <div id="ordenes-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; backdrop-filter: blur(4px);">
-    <iframe src="https://tecsycom2026.github.io/ordenes_asignadas/" style="width:100%; height:100%; border:none;"></iframe>
+    <iframe src="https://tecsycom2026.github.io/ordenes_asignadas/" style="width:100%; height:100%; border:none; border-radius:12px;"></iframe>
     <button onclick="cerrarModal()" style="position:absolute; top:20px; right:20px; background:#ef4444; color:white; border:none; padding:10px 15px; border-radius:8px; font-weight:bold; cursor:pointer;">CERRAR X</button>
   </div>
 </body>
