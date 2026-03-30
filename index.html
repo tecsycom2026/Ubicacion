@@ -1,391 +1,238 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Visor de Ubicación Tecsycom</title>
-    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/1865/1865269.png" type="image/x-icon">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-    <style>
-        html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #app-container { display: flex; flex-direction: column; height: 100vh; width: 100%; }
-        
-        /* Header */
-        #header { background-color: #ffffff; padding: 10px 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); z-index: 1000; position: relative; }
-        #header h4 { margin: 0; font-size: 1.1rem; font-weight: 600; color: #333; }
-        #header .subtitle { font-size: 0.8rem; color: #666; margin-top: 2px; }
-
-        /* Mapa y Controles */
-        #map-container { flex-grow: 1; position: relative; height: 100%; }
-        #map { height: 100%; width: 100%; }
-        
-        /* Controles flotantes */
-        .floating-control { position: absolute; z-index: 1001; background: rgba(255,255,255,0.9); border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); padding: 10px; backdrop-filter: blur(5px); }
-        
-        /* Selector de Mapa (NUEVO) */
-        #map-style-control { top: 10px; right: 10px; width: 150px; }
-        #map-style-select { font-size: 0.8rem; padding: 4px 8px; }
-
-        /* Panel de Estado */
-        #status-panel { bottom: 20px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 400px; text-align: center; }
-        #status-text { font-size: 0.9rem; font-weight: 500; color: #333; margin-bottom: 8px; }
-        #status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background-color: #6c757d; margin-right: 5px; }
-        #status-indicator.active { background-color: #28a745; animation: pulse 1.5s infinite; }
-        #status-indicator.error { background-color: #dc3545; }
-        
-        /* Botón Compartir */
-        #share-btn { width: 100%; font-weight: 600; font-size: 1rem; padding: 12px; border-radius: 8px; transition: all 0.3s; }
-        #share-btn.sharing { background-color: #dc3545; border-color: #dc3545; }
-        #share-btn.sharing:hover { background-color: #c82333; border-color: #bd2130; }
-
-        /* Marcador Personalizado */
-        .custom-pin { width: 30px; height: 30px; border-radius: 50%; background: #4285F4; color: #fff; display: flex; align-items:center; justify-content:center; font-size: 1.2em; box-shadow: 0 2px 8px rgba(0,0,0,0.3); border: 2px solid white; }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(40, 167, 69, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(40, 167, 69, 0); }
-        }
-
-        /* Modal Nombre */
-        #nameModal { background-color: rgba(0,0,0,0.5); backdrop-filter: blur(3px); }
-        .modal-content { border-radius: 12px; border: none; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
-    </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="theme-color" content="#2563eb">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tracking">
+  <title>PeruFibra – Compartir Ubicación</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/1865/1865269.png">
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/1865/1865269.png" type="image/x-icon">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --bg: #f8fafc;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #1e293b; }
+    .card { background: white; border-radius: 20px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); padding: 24px; max-width: 450px; margin: 0 auto; position: relative; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .header img { width: 64px; height: 64px; margin-bottom: 12px; }
+    .header h1 { font-size: 1.5rem; font-weight: 700; margin: 0; color: #0f172a; }
+    .input-group { margin-bottom: 20px; }
+    label { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 8px; color: #64748b; }
+    input { width: 100%; padding: 12px 16px; border-radius: 12px; border: 2px solid #e2e8f0; font-size: 1rem; box-sizing: border-box; transition: border-color 0.2s; }
+    input:focus { outline: none; border-color: var(--primary); }
+    #btn-share { width: 100%; padding: 14px; border-radius: 12px; border: none; background: var(--primary); color: white; font-size: 1rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, background 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    #btn-share:active { transform: scale(0.98); }
+    #btn-share.sharing { background: #ef4444; }
+    #status { margin-top: 20px; padding: 12px; border-radius: 12px; font-size: 0.875rem; display: none; text-align: center; }
+    .status-active { display: block !important; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .status-error { display: block !important; background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    
+    /* --- NUEVOS ESTILOS SELECTOR DE MAPA --- */
+    .map-style-container { margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; }
+    .map-select { width: 100%; padding: 10px; border-radius: 10px; border: 2px solid #e2e8f0; font-size: 0.9rem; background: white; }
+    
+    #map { height: 200px; border-radius: 16px; margin-top: 20px; background: #e5e7eb; border: 1px solid #e2e8f0; }
+    .footer-info { margin-top: 20px; font-size: 0.75rem; color: #94a3b8; text-align: center; line-height: 1.5; }
+    .btn-ordenes { margin-top: 10px; width: 100%; padding: 10px; border-radius: 10px; border: 1px solid var(--primary); background: white; color: var(--primary); font-weight: 600; cursor: pointer; }
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
-<div id="app-container">
-    <div id="header">
-        <div class="d-flex justify-content-between align-items-center">
-            <div>
-                <h4><i class="fas fa-satellite-dish text-primary me-2"></i>Tecsycom Tracking</h4>
-                <div class="subtitle" id="user-display">Esperando identificación...</div>
-            </div>
-            <button class="btn btn-sm btn-outline-secondary" id="change-name-btn" title="Cambiar Nombre">
-                <i class="fas fa-user-edit"></i>
-            </button>
-        </div>
+
+  <div class="card">
+    <div class="header">
+      <img src="https://cdn-icons-png.flaticon.com/512/1865/1865269.png" alt="Logo">
+      <h1>Compartir Ubicación</h1>
     </div>
 
-    <div id="map-container">
-        <div id="map"></div>
-        
-        <div class="floating-control" id="map-style-control">
-            <label for="map-style-select" class="form-label small fw-bold mb-1">Estilo de Mapa:</label>
-            <select id="map-style-select" class="form-select form-select-sm">
-                <option value="carto">CartoDB Positron</option>
-                <option value="google">Google Maps</option>
-            </select>
-        </div>
-
-        <div class="floating-control" id="status-panel">
-            <div id="status-text">
-                <span id="status-indicator"></span>
-                <span id="status-label">Ubicación desactivada</span>
-            </div>
-            <button id="share-btn" class="btn btn-primary">
-                <i class="fas fa-location-arrow me-2"></i>Compartir Ubicación
-            </button>
-        </div>
+    <div class="input-group">
+      <label for="tech-name">Nombre del Técnico</label>
+      <input type="text" id="tech-name" placeholder="Ej. Juan Pérez" autocomplete="name">
     </div>
-</div>
 
-<div class="modal fade" id="nameModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Identificación</h5>
-            </div>
-            <div class="modal-body">
-                <p class="small text-muted mb-3">Ingresa tu nombre para identificarte en el mapa central.</p>
-                <input type="text" id="user-name-input" class="form-control" placeholder="Ej: Juan Pérez" maxlength="30">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary w-100" id="save-name-btn">Comenzar</button>
-            </div>
-        </div>
+    <button id="btn-share">
+      <span>📡</span> Iniciar Transmisión
+    </button>
+
+    <div id="status"></div>
+
+    <div id="map"></div>
+
+    <div class="map-style-container">
+      <label>Estilo del Mapa</label>
+      <select id="map-style-select" class="map-select">
+        <option value="carto">CartoDB Positron (Claro)</option>
+        <option value="google">Google Maps (Estándar)</option>
+      </select>
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <button class="btn-ordenes" onclick="verOrdenes()">📋 Ver Mis Órdenes Asignadas</button>
 
-<script>
-// --- CONFIGURACIÓN ---
-const SUPABASE_URL = 'https://jxpeztieqwotfgswhzhx.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    <div class="footer-info">
+      La ubicación se actualiza automáticamente cada 30 segundos.<br>
+      Mantén la aplicación abierta para asegurar el rastreo.
+    </div>
+  </div>
 
-// --- GLOBALES ---
-let map, userMarker, watchId;
-let isSharing = false;
-let userName = localStorage.getItem('gps_user_name');
-let userId = localStorage.getItem('gps_user_id');
-let _lastPos = null;
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // --- CONFIGURACIÓN SUPABASE (ORIGINAL) ---
+    const SUPABASE_URL = 'https://jxpeztieqwotfgswhzhx.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4cGV6dGllcXdvdGZnc3doemh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA4MzQ4MDQsImV4cCI6MjA4NjQxMDgwNH0.Hf-lbGlP2OmH7Uh2LNKqwHkwHDp7yQV6O73aXw5NCZk';
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- DEFINICIÓN DE CAPAS DE MAPA ---
-const mapLayers = {
-    carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
-        attribution: '&copy; CartoDB'
-    }),
-    google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-        attribution: '&copy; Google Maps'
-    })
-};
-let currentLayer = mapLayers.carto; // Capa inicial predeterminada
+    let map, marker, watchId, isSharing = false;
+    let userId = localStorage.getItem('gps_user_id') || 'u_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('gps_user_id', userId);
 
-// --- INICIALIZACIÓN ---
-document.addEventListener('DOMContentLoaded', () => {
-    initMap();
-    setupEventListeners();
-    checkUserIdentity();
-});
+    const nameInput = document.getElementById('tech-name');
+    const btnShare = document.getElementById('btn-share');
+    const statusDiv = document.getElementById('status');
+    const styleSelect = document.getElementById('map-style-select');
 
-function initMap() {
-    // Inicializar mapa centrado en Lima (predeterminado)
-    map = L.map('map', {
-        zoomControl: false // Ocultar controles +/- estándar
-    }).setView([-12.0464, -77.0428], 12);
-    
-    // Añadir controles +/- en una posición más conveniente
-    L.control.zoom({ position: 'topleft' }).addTo(map);
-
-    // Añadir la capa inicial
-    currentLayer.addTo(map);
-}
-
-function setupEventListeners() {
-    // Botón principal
-    document.getElementById('share-btn').addEventListener('click', toggleSharing);
-    
-    // Modal de nombre
-    document.getElementById('save-name-btn').addEventListener('click', saveName);
-    document.getElementById('user-name-input').addEventListener('keypress', e => { if(e.key === 'Enter') saveName(); });
-    
-    // Botón cambiar nombre en header
-    document.getElementById('change-name-btn').addEventListener('click', showNameModal);
-
-    // ESCUCHADOR PARA EL SELECTOR DE ESTILO DE MAPA (NUEVO)
-    document.getElementById('map-style-select').addEventListener('change', function(e) {
-        changeMapStyle(e.target.value);
-    });
-}
-
-// FUNCIÓN PARA CAMBIAR EL ESTILO DE MAPA (NUEVO)
-function changeMapStyle(styleKey) {
-    if (mapLayers[styleKey]) {
-        // Eliminar capa actual
-        map.removeLayer(currentLayer);
-        // Establecer nueva capa
-        currentLayer = mapLayers[styleKey];
-        // Añadir nueva capa al mapa
-        currentLayer.addTo(map);
+    if(localStorage.getItem('gps_user_name')) {
+      nameInput.value = localStorage.getItem('gps_user_name');
     }
-}
 
-// --- GESTIÓN DE IDENTIDAD ---
-function checkUserIdentity() {
-    if (!userName) {
-        showNameModal();
-    } else {
-        updateUserDisplay();
-        // Si ya hay nombre, intentar recuperar ID o generar uno
-        if (!userId) userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-        localStorage.setItem('gps_user_id', userId);
-    }
-}
-
-function showNameModal() {
-    const modal = new bootstrap.Modal(document.getElementById('nameModal'));
-    if (userName) document.getElementById('user-name-input').value = userName;
-    modal.show();
-}
-
-function saveName() {
-    const input = document.getElementById('user-name-input').value.trim();
-    if (!input) { alert('Por favor, ingresa tu nombre.'); return; }
-    
-    userName = input;
-    localStorage.setItem('gps_user_name', userName);
-    updateUserDisplay();
-    
-    // Generar ID único permanente si no existe
-    if (!userId) {
-        userId = 'u_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
-        localStorage.setItem('gps_user_id', userId);
-    }
-    
-    // Cerrar modal
-    bootstrap.Modal.getInstance(document.getElementById('nameModal')).hide();
-}
-
-function updateUserDisplay() {
-    document.getElementById('user-display').textContent = `Técnico: ${userName}`;
-}
-
-// --- LÓGICA DE GEOLOCALIZACIÓN Y COMPARTIR ---
-function toggleSharing() {
-    if (!userName) { showNameModal(); return; }
-    
-    if (isSharing) {
-        stopSharing();
-    } else {
-        startSharing();
-    }
-}
-
-function startSharing() {
-    if (!navigator.geolocation) { alert('Tu navegador no soporta geolocalización.'); return; }
-    
-    updateStatus('Solicitando permisos GPS...', 'pending');
-    
-    // Configuración de watchPosition
-    const geoOptions = {
-        enableHighAccuracy: true, // GPS preciso
-        timeout: 10000,           // Esperar 10s máx por fijación
-        maximumAge: 0             // No usar caché
+    // --- CAPAS DE MAPA ---
+    const layers = {
+      carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'),
+      google: L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}')
     };
-    
-    // Iniciar rastreo activo
-    watchId = navigator.geolocation.watchPosition(
-        onGeoSuccess,
-        onGeoError,
-        geoOptions
-    );
-    
-    // Modificar interfaz
-    isSharing = true;
-    const btn = document.getElementById('share-btn');
-    btn.innerHTML = '<i class="fas fa-stop-circle me-2"></i>Detener Transmisión';
-    btn.classList.add('sharing', 'btn-danger');
-    btn.classList.remove('btn-primary');
-    document.getElementById('status-indicator').classList.add('active');
-    document.getElementById('status-indicator').classList.remove('error');
-    updateStatus('Iniciando GPS...', 'pending');
-}
+    let currentLayer = layers.carto;
 
-function stopSharing() {
-    if (watchId) navigator.geolocation.clearWatch(watchId);
-    
-    isSharing = false;
-    _lastPos = null;
-    
-    // Quitar marcador si existe
-    if (userMarker) {
-        map.removeLayer(userMarker);
-        userMarker = null;
+    // --- INICIALIZACIÓN DE MAPA ---
+    map = L.map('map', { zoomControl: false }).setView([-12.0464, -77.0428], 15);
+    currentLayer.addTo(map);
+
+    // Lógica para cambiar estilo sin recargar
+    styleSelect.addEventListener('change', (e) => {
+      map.removeLayer(currentLayer);
+      currentLayer = layers[e.target.value];
+      currentLayer.addTo(map);
+    });
+
+    // --- LÓGICA DE COMPARTIR (ORIGINAL) ---
+    btnShare.addEventListener('click', () => {
+      if (!isSharing) {
+        const name = nameInput.value.trim();
+        if (!name) return alert('Ingresa tu nombre');
+        localStorage.setItem('gps_user_name', name);
+        startTracking();
+      } else {
+        stopTracking();
+      }
+    });
+
+    function startTracking() {
+      if (!navigator.geolocation) return alert('GPS no soportado');
+      isSharing = true;
+      btnShare.classList.add('sharing');
+      btnShare.innerHTML = '<span>🛑</span> Detener Transmisión';
+      statusDiv.className = 'status-active';
+      statusDiv.innerText = 'Buscando señal GPS...';
+
+      watchId = navigator.geolocation.watchPosition(updatePos, handleError, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      });
     }
-    
-    // Modificar interfaz
-    const btn = document.getElementById('share-btn');
-    btn.innerHTML = '<i class="fas fa-location-arrow me-2"></i>Compartir Ubicación';
-    btn.classList.remove('sharing', 'btn-danger');
-    btn.classList.add('btn-primary');
-    document.getElementById('status-indicator').classList.remove('active', 'error');
-    updateStatus('Ubicación desactivada');
-}
 
-// --- MANEJO DE GEODATOS ---
-function onGeoSuccess(position) {
-    _lastPos = position;
-    const { latitude, longitude, accuracy } = position.coords;
-    
-    // 1. Actualizar el Mapa Local
-    updateLocalMap(latitude, longitude, accuracy);
-    
-    // 2. Enviar a Supabase
-    upsertLocation(position);
-}
+    async function updatePos(pos) {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      const name = nameInput.value.trim();
 
-function updateLocalMap(lat, lng, acc) {
-    if (!map) return;
-    
-    // Crear o mover marcador (icono de auto)
-    if (!userMarker) {
-        // Icono personalizado: Auto rojo para destacar en CartoDB o Satélite
-        const iconHtml = `
-            <div style="position:relative;text-align:center;">
-                <div style="font-size:24px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.5));">🚗</div>
-                <div style="background:white;color:#333;font-size:9px;font-weight:bold;padding:1px 5px;border-radius:4px;white-space:nowrap;display:inline-block;margin-top:2px;box-shadow:0 1px 3px rgba(0,0,0,0.3); border:1px solid #ddd;">Tú</div>
-            </div>`;
-        
-        userMarker = L.marker([lat, lng], {
-            icon: L.divIcon({ className: '', html: iconHtml, iconSize: [50, 40], iconAnchor: [12, 12] })
-        }).addTo(map);
-        
-        // Primera vez, centrar y hacer zoom
-        map.setView([lat, lng], 17);
-    } else {
-        // Solo mover
-        userMarker.setLatLng([lat, lng]);
+      if (!marker) {
+        marker = L.marker([lat, lng]).addTo(map);
+      } else {
+        marker.setLatLng([lat, lng]);
+      }
+      map.panTo([lat, lng]);
+
+      statusDiv.innerText = `Transmitiendo: ${new Date().toLocaleTimeString()}`;
+
+      // ENVÍO A SUPABASE (LÓGICA ORIGINAL)
+      await sb.from('user_locations').upsert({
+        id: userId,
+        nombre: name,
+        lat,
+        lng,
+        updated_at: new Date().toISOString()
+      });
     }
-}
 
-function onGeoError(error) {
-    console.warn(`ERROR GPS (${error.code}): ${error.message}`);
-    let msg = 'Error GPS desconocidos.';
-    switch(error.code) {
-        case error.PERMISSION_DENIED: msg = 'Permiso de ubicación denegado.'; stopSharing(); break;
-        case error.POSITION_UNAVAILABLE: msg = 'Señal GPS no disponible.'; break;
-        case error.TIMEOUT: msg = 'Tiempo de espera GPS agotado.'; break;
+    function stopTracking() {
+      navigator.geolocation.clearWatch(watchId);
+      isSharing = false;
+      btnShare.classList.remove('sharing');
+      btnShare.innerHTML = '<span>📡</span> Iniciar Transmisión';
+      statusDiv.className = '';
+      statusDiv.innerText = '';
     }
-    updateStatus(msg, 'error');
-}
 
-// --- ENVÍO A SUPABASE ---
-async function upsertLocation(pos) {
-    if (!isSharing) return;
-    
-    const { latitude: lat, longitude: lng } = pos.coords;
-    const id = userId;
-    const nombre = userName;
-    const updated_at = new Date().toISOString();
-    
-    try {
-        // Enviar datos: Si ID existe actualiza, si no inserta
-        const { error } = await sb.from('user_locations').upsert({
-            id,
-            nombre,
-            lat,
-            lng,
-            updated_at
+    function handleError(err) {
+      statusDiv.className = 'status-error';
+      statusDiv.innerText = `Error GPS: ${err.message}`;
+    }
+
+    // INTERVALO DE SEGURIDAD 30S (ORIGINAL)
+    setInterval(async () => {
+      if (isSharing && marker) {
+        const pos = marker.getLatLng();
+        await sb.from('user_locations').upsert({
+          id: userId,
+          nombre: nameInput.value.trim(),
+          lat: pos.lat,
+          lng: pos.lng,
+          updated_at: new Date().toISOString()
         });
-        
-        if (error) throw error;
-        
-        // Actualizar estado en interfaz
-        const time = new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
-        updateStatus(`Transmitiendo... (Ult: ${time})`);
-        
-    } catch (err) {
-        console.error('Error enviando a Supabase:', err.message);
-        updateStatus('Error de conexión a base de datos.', 'error');
-    }
-}
+      }
+    }, 30000);
 
-// INTERVALO DE SEGURIDAD (Cada 30s re-envía la última posición conocida para mantener el "online")
-setInterval(() => {
-    if (isSharing && _lastPos) {
-        upsertLocation(_lastPos);
+    // --- LÓGICA DE ÓRDENES ASIGNADAS (ORIGINAL) ---
+    function verOrdenes() {
+      document.getElementById('ordenes-modal').style.display = 'block';
     }
-}, 30000);
+    function cerrarModal() {
+      document.getElementById('ordenes-modal').style.display = 'none';
+    }
 
-// --- UTILIDADES INTERFAZ ---
-function updateStatus(label, type = 'normal') {
-    const labelEl = document.getElementById('status-label');
-    const indicatorEl = document.getElementById('status-indicator');
-    
-    labelEl.textContent = label;
-    indicatorEl.classList.remove('error');
-    
-    if (type === 'error') {
-        indicatorEl.classList.add('error');
-        indicatorEl.classList.remove('active');
+    // --- LÓGICA PWA / INSTALACIÓN (ORIGINAL) ---
+    let _installPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        _installPrompt = e;
+        const banner = document.createElement('div');
+        banner.id = 'install-banner';
+        banner.style = "background:var(--primary);color:white;padding:12px;border-radius:12px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;";
+        banner.innerHTML = `<span><span style="font-size:1.2rem;">📲</span> Instala la app</span><button onclick="installApp()" style="padding:6px 12px;border-radius:8px;border:none;background:white;color:var(--primary);font-weight:600;cursor:pointer;">Instalar</button>`;
+        document.querySelector('.card').prepend(banner);
+    });
+
+    async function installApp(){
+        if(!_installPrompt) return;
+        _installPrompt.prompt();
+        const result = await _installPrompt.userChoice;
+        if(result.outcome === 'accepted'){
+            document.getElementById('install-banner')?.remove();
+            _installPrompt = null;
+        }
     }
-}
-</script>
+  </script>
+
+  <div id="ordenes-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; backdrop-filter: blur(4px);">
+    <iframe src="https://tecsycom2026.github.io/ordenes_asignadas/" style="width:100%; height:100%; border:none;"></iframe>
+    <button onclick="cerrarModal()" style="position:absolute; top:20px; right:20px; background:#ef4444; color:white; border:none; padding:10px 15px; border-radius:8px; font-weight:bold; cursor:pointer;">CERRAR X</button>
+  </div>
 </body>
 </html>
